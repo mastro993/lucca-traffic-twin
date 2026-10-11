@@ -131,6 +131,16 @@ details a { color: var(--accent); }
 #chart text { font-family: var(--font-mono); font-size: 10px; fill: var(--ink-3); }
 #chart .hl text { fill: var(--ink); font-weight: 500; }
 
+.hint { margin: 6px 0 0; font-size: 12px; color: var(--ink-3); }
+#follow { position: fixed; z-index: 5; right: 16px; top: calc(env(safe-area-inset-top, 0px) + 76px); width: 286px; padding: 10px 12px 12px;
+  background: var(--surface); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow); display: grid; gap: 6px; }
+#follow .head { display: flex; justify-content: space-between; align-items: center; }
+#follow .head button { border: 0; background: transparent; cursor: pointer; color: var(--ink-2); font-size: 20px; line-height: 1; padding: 0 4px; border-radius: 4px; }
+#follow .when { font-family: var(--font-display); font-weight: 700; font-size: 22px; font-variant-numeric: tabular-nums; }
+#follow .bar { height: 5px; border-radius: 3px; background: var(--line); overflow: hidden; }
+#follow .bar i { display: block; height: 100%; width: 0; background: var(--accent); }
+#follow .m { font-size: 12.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 #tip { position: fixed; z-index: 6; pointer-events: none; background: var(--surface-solid); color: var(--ink); border: 1px solid var(--line); border-radius: 8px;
   box-shadow: var(--shadow); padding: 8px 10px; font-size: 12.5px; line-height: 1.4; max-width: 260px; }
 #tip b { font-weight: 600; }
@@ -152,6 +162,7 @@ details a { color: var(--accent); }
   .sheet-handle { display: block; border: 0; background: transparent; width: 100%; padding: 6px 0 0; cursor: pointer; }
   .sheet-handle::before { content: ''; display: block; width: 40px; height: 4px; border-radius: 2px; background: var(--ink-3); margin: 0 auto; opacity: .6; }
   .clock .time { font-size: 34px; }
+  #follow { left: 8px; right: 8px; width: auto; top: calc(env(safe-area-inset-top, 0px) + 74px); }
 }
 @media (prefers-reduced-motion: reduce) { #loading { transition: none; } }
 </style>
@@ -171,13 +182,13 @@ details a { color: var(--accent); }
       <button id="daySat" aria-pressed="false">Saturday</button>
     </div>
     <div class="clock">
-      <div class="time" id="clockTime">08:00<small>–09:00</small></div>
+      <div class="time" id="clockTime">08:00</div>
       <div class="ctx" id="clockCtx">School-day morning peak</div>
     </div>
     <div class="kpis">
-      <div class="kpi"><b id="kVeh">–</b><span>vehicles on the network</span></div>
-      <div class="kpi"><b id="kSpd">–</b><span>average speed, km/h</span></div>
-      <div class="kpi"><b id="kDel">–</b><span>delay this hour, vehicle-hours</span></div>
+      <div class="kpi"><b id="kVeh">–</b><span>vehicles on the road now</span></div>
+      <div class="kpi"><b id="kSpd">–</b><span>average speed now, km/h</span></div>
+      <div class="kpi"><b id="kDel">–</b><span>delay, vehicle-hours per hour</span></div>
       <div class="kpi"><b id="kCong">–</b><span>km of road below half speed</span></div>
     </div>
     <div class="legend">
@@ -200,6 +211,7 @@ details a { color: var(--accent); }
       <label><input type="checkbox" id="tHot" checked> Critical points</label>
       <label><input type="checkbox" id="tLbl" checked> Place names</label>
     </div>
+    <p class="hint">Click a vehicle to follow its trip from departure to arrival.</p>
     <details id="about">
       <summary>Method, data and limits</summary>
       <div class="body" id="aboutBody"></div>
@@ -211,10 +223,16 @@ details a { color: var(--accent); }
   <div class="transport">
     <button class="play" id="playBtn" aria-label="Play the day"><svg viewBox="0 0 24 24" id="playIcon"><path d="M7 4l13 8-13 8z"/></svg></button>
     <div class="speed" role="group" aria-label="Replay speed">
-      <button data-s="1" aria-pressed="false">1×</button><button data-s="4" aria-pressed="true">4×</button><button data-s="10" aria-pressed="false">10×</button>
+      <button data-s="1" aria-pressed="false">1×</button><button data-s="10" aria-pressed="false">10×</button><button data-s="60" aria-pressed="true">60×</button><button data-s="360" aria-pressed="false">360×</button>
     </div>
   </div>
-  <svg id="chart" role="slider" aria-label="Hour of day" aria-valuemin="0" aria-valuemax="23" aria-valuenow="8" tabindex="0"></svg>
+  <svg id="chart" role="slider" aria-label="Time of day" aria-valuemin="0" aria-valuemax="23" aria-valuenow="8" tabindex="0"></svg>
+</div>
+<div id="follow" hidden>
+  <div class="head"><span class="label" id="fType">Following a car</span><button id="fStop" aria-label="Stop following">×</button></div>
+  <div class="when" id="fWhen"></div>
+  <div class="bar"><i id="fBar"></i></div>
+  <div class="m" id="fMeta"></div>
 </div>
 <div id="tip" hidden></div>
 <div id="loading"><div id="loadMsg">Loading Lucca…</div></div>
@@ -224,13 +242,14 @@ details a { color: var(--accent); }
 'use strict';
 const D = deck;
 const $ = (id) => document.getElementById(id);
-const S = { day: 'wd', hour: 8, mode: 'speed', playing: false, mult: 4, t: 0, sel: null,
-  layers: { veh: true, bld: true, hot: true, lbl: true }, zoom: 13.4 };
+// S.t is the simulation clock in seconds of the day; S.hour = floor(S.t / 3600); S.ct is the 2-minute step the map colours follow
+const S = { day: 'wd', hour: 8, t: 8 * 3600, ct: -1, mode: 'speed', playing: false, mult: 60, sel: null, follow: null,
+  layers: { veh: true, bld: true, hot: true, lbl: true }, zoom: 13.4, vs: null };
 const DAYS = { wd: 'Weekday', sat: 'Saturday' };
 const RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const STILL = /still/.test(location.search);
-const QH = location.search.match(/[?&]h=(\d+)/), QZ = location.search.match(/[?&]z=([\d.]+)/);
-if (QH) S.hour = +QH[1];
+const QH = location.search.match(/[?&]h=([\d.]+)/), QZ = location.search.match(/[?&]z=([\d.]+)/);
+if (QH) { S.t = Math.min(23.99, +QH[1]) * 3600; S.hour = Math.floor(S.t / 3600); }
 if (/[?&]d=sat/.test(location.search)) S.day = 'sat';
 
 // ---------- theme-aware colours read from CSS tokens
@@ -250,13 +269,18 @@ function ramp(stops, v) { // stops: [[value, rgb]...] ascending
   for (let i = 1; i < stops.length; i++) if (v <= stops[i][0]) { const t = (v - stops[i - 1][0]) / (stops[i][0] - stops[i - 1][0]); const a = stops[i - 1][1], b = stops[i][1]; return [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t), 255]; }
   return stops[stops.length - 1][1];
 }
+const mix = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t), lerp(a[3], b[3], t)];
+// hourly figures are averages over the hour, so they belong at half past: blend the two hours around time t
+function hourBlend(t) { const x = t / 3600 - 0.5, h0 = Math.floor(x); return [(h0 + 24) % 24, (h0 + 25) % 24, x - h0]; }
+let B = hourBlend(S.t);   // the blend the map colours use, refreshed every S.ct step
+const blendOf = (arr, b = B) => lerp(arr[b[0]], arr[b[1]], b[2]);
 const speedStops = () => [[0.08, C.cong[5]], [0.25, C.cong[4]], [0.45, C.cong[3]], [0.62, C.cong[2]], [0.8, C.cong[1]], [0.95, C.cong[0]]];
 const volStops = () => [[0, C.vol[0]], [300, C.vol[1]], [800, C.vol[2]], [1600, C.vol[3]]];
 const delayStops = () => [[0, C.cong[0]], [20, C.cong[2]], [80, C.cong[3]], [250, C.cong[4]], [700, C.cong[5]]];
 
 // ---------- data
 const T = { float32: Float32Array, uint32: Uint32Array, uint16: Uint16Array, uint8: Uint8Array, int16: Int16Array };
-const M = {}; let meta, summary, roads = {}, bld, gnd, ww, wall, rail, edgesData = {}, vehCache = {}, veh = null;
+let meta, summary, roads = {}, bld, gnd, ww, wall, rail, edgesData = {};
 function view(buf, e) { return new T[e.dtype](buf, e.offset, e.length); }
 async function gunzip(u8) {
   if (typeof DecompressionStream !== 'undefined') {
@@ -280,6 +304,13 @@ async function loadStatic() {
   roads.n = roads.lanes.length;
   roads.order = Array.from({ length: roads.n }, (_, i) => i).sort((a, b) => roads.cls[b] - roads.cls[a]);
   roads.minor = roads.order.filter(i => roads.cls[i] >= 5); roads.major = roads.order.filter(i => roads.cls[i] < 5);
+  // distance along each road at every vertex, to place vehicles by distance
+  const P = roads.pos; roads.cum = new Float32Array(P.length / 2); roads.plen = new Float32Array(roads.n);
+  for (let e = 0; e < roads.n; e++) {
+    let s = 0; const a = roads.start[e], b = roads.start[e + 1];
+    for (let v = a + 1; v < b; v++) { s += Math.hypot(P[2 * v] - P[2 * v - 2], P[2 * v + 1] - P[2 * v - 1]); roads.cum[v] = s; }
+    roads.plen[e] = s;
+  }
   const bs = v('bld_start');
   bld = { length: bs.length - 1, startIndices: bs.subarray(0, bs.length - 1), pos: v('bld_pos'), h: v('bld_h') };
   const gs = v('gnd_start');
@@ -293,56 +324,127 @@ async function loadDay(day) {
   const buf = await getBin(`data/${day}_edges.bin`); const N = roads.n, H = 24;
   edgesData[day] = { spd: new Uint8Array(buf, 0, N * H), flow: new Uint16Array(buf, N * H, N * H), delay: new Uint16Array(buf, N * H * 3, N * H), dens: new Uint16Array(buf, N * H * 5, N * H) };
 }
-async function loadVeh(day, h) {
+// ---------- trip replay: every simulated trip, driven along its route between the edge exit times SUMO recorded.
+// One LTR1 file per hour holds every vehicle on the road during that hour, so any clock time needs exactly one file.
+const tripCache = {};
+function trips(day, h) { // the hour's trips; undefined while loading, null if missing
   const key = `${day}_${String(h).padStart(2, '0')}`;
-  if (vehCache[key]) return vehCache[key];
-  const p = getBin(`data/veh/${key}.bin`).then(parseVeh).catch(() => null);
-  vehCache[key] = p; return p;
+  let c = tripCache[key];
+  if (!c) { c = tripCache[key] = { v: undefined }; c.p = getBin(`data/trips/${key}.bin`).then(parseTrips).catch(() => null).then(v => (c.v = v)); }
+  return c.v;
 }
-function parseVeh(buf) {
-  const dv = new DataView(buf); const n = dv.getUint32(4, true), nF = dv.getUint32(8, true), dt = dv.getFloat32(12, true), t0 = dv.getFloat32(16, true);
-  const tab = new Uint16Array(buf.slice(20, 20 + 4 * n)); const types = new Uint8Array(buf, 20 + 4 * n, n);
-  let off = 20 + 5 * n; off += off % 2;
-  const offs = new Uint32Array(n + 1); for (let i = 0; i < n; i++) offs[i + 1] = offs[i] + tab[2 * i + 1];
-  const P = offs[n];
-  const magic = String.fromCharCode(...new Uint8Array(buf, 0, 4));
-  let xy;
-  if (magic === 'LVF2') { // planar, delta-coded per vehicle
-    const dx = new Int16Array(buf.slice(off, off + 2 * P)), dy = new Int16Array(buf.slice(off + 2 * P, off + 4 * P));
-    xy = new Int16Array(2 * P);
-    for (let i = 0; i < n; i++) { const o = offs[i], c = tab[2 * i + 1]; let x = 0, y = 0;
-      for (let k = 0; k < c; k++) { x = k ? x + dx[o + k] : dx[o + k]; y = k ? y + dy[o + k] : dy[o + k]; xy[2 * (o + k)] = x; xy[2 * (o + k) + 1] = y; } }
-  } else xy = new Int16Array(buf.slice(off, off + 4 * P));
-  const ang = new Uint8Array(buf, off + 4 * P, P); const spd = new Uint8Array(buf, off + 5 * P, P);
-  return { n, nF, dt, t0, tab, types, offs, xy, ang, spd, dur: (nF - 1) * dt,
+function parseTrips(buf) {
+  const dv = new DataView(buf); if (dv.getUint32(0, true) !== 0x3152544c) throw new Error('not LTR1');
+  const n = dv.getUint32(4, true), m = dv.getUint32(8, true); let o = 16;
+  const take = (A, k) => { const a = new A(buf, o, k); o += a.byteLength; return a; };
+  const dep = take(Uint32Array, n), cnt = take(Uint16Array, n), edge = take(Uint16Array, m), dt = take(Uint16Array, m);
+  const type = take(Uint8Array, n), dpos = take(Uint8Array, n), apos = take(Uint8Array, n);
+  const offs = new Uint32Array(n + 1), exit = new Uint32Array(m), arr = new Uint32Array(n);
+  for (let i = 0; i < n; i++) {
+    const a = offs[i], b = offs[i + 1] = a + cnt[i]; let x = dep[i];
+    for (let k = a; k < b; k++) exit[k] = x += dt[k];
+    arr[i] = x;
+  }
+  return { n, dep, arr, offs, edge, exit, type, dpos, apos, cur: new Uint16Array(n),
     pos: new Float32Array(n * 3), ori: new Float32Array(n * 3), col: new Uint8Array(n * 4), scl: new Float32Array(n * 3) };
 }
-
-// ---------- vehicles: interpolate the recorded SUMO trajectories
+// where vehicle i of trip set c is at time t: it moves at constant speed along each edge, from entry to exit time
+function locate(c, i, t, out) {
+  const o = c.offs[i], n = c.offs[i + 1] - o; let k = c.cur[i];
+  if (k && c.exit[o + k - 1] > t) k = 0;
+  while (k < n - 1 && c.exit[o + k] < t) k++;
+  c.cur[i] = k;
+  const t0 = k ? c.exit[o + k - 1] : c.dep[i], t1 = c.exit[o + k], e = c.edge[o + k];
+  const f0 = k ? 0 : c.dpos[i] / 255, f1 = k < n - 1 ? 1 : c.apos[i] / 255;
+  const u = t1 > t0 ? Math.min(1, Math.max(0, (t - t0) / (t1 - t0))) : 1;
+  roadPoint(e, (f0 + (f1 - f0) * u) * roads.plen[e], out);
+  out.kmh = t1 > t0 ? Math.min(150, Math.abs(f1 - f0) * roads.len[e] / (t1 - t0) * 3.6) : 0;
+  out.k = k; out.e = e; out.f = f0 + (f1 - f0) * u;
+  return out;
+}
+function roadPoint(e, d, out) {
+  const P = roads.pos, cum = roads.cum, b = roads.start[e + 1] - 1; let v = roads.start[e] + 1;
+  while (v < b && cum[v] < d) v++;
+  const u = cum[v] > cum[v - 1] ? Math.min(1, (d - cum[v - 1]) / (cum[v] - cum[v - 1])) : 0;
+  const x0 = P[2 * v - 2], y0 = P[2 * v - 1], dx = P[2 * v] - x0, dy = P[2 * v + 1] - y0;
+  out.x = x0 + dx * u; out.y = y0 + dy * u; out.ang = Math.atan2(dx, dy) * 180 / Math.PI;
+  return out;
+}
 const VSCALE = [[1.8, 4.4, 1.45], [2.0, 5.6, 2.1], [2.5, 11, 3.4], [1.8, 4.3, 1.45]];
-let vehView = { length: 0 };
+const VNAME = ['car', 'van', 'lorry', 'ZTL permit car'];
+let vehView = { length: 0 }, vehSet = null; const live = { n: 0, kmh: 0 }, LP = {};
 function updateVehicles() {
-  if (!veh || !S.layers.veh) { vehView = { length: 0 }; return; }
-  const v = veh, t = S.t, fT = t / v.dt; let m = 0;
+  const c = trips(S.day, S.hour); vehSet = c; live.n = 0; live.kmh = 0;
+  if (!c) { vehView = { length: 0 }; return; }
+  const t = S.t, draw = S.layers.veh, m = c.n; let ksum = 0;
   const stopCol = C.cong[4], carCol = C.car, trkCol = [214, 122, 52, 255], ztlCol = [70, 150, 230, 255];
-  for (let i = 0; i < v.n; i++) {
-    const f0 = v.tab[2 * i], n = v.tab[2 * i + 1]; const lf = fT - f0;
-    if (lf < 0 || lf > n - 1) continue;
-    const k = Math.min(n - 2, Math.floor(lf)), a = lf - k, base = v.offs[i] + k;
-    const x = lerp(v.xy[2 * base], v.xy[2 * base + 2], a) / 2, y = lerp(v.xy[2 * base + 1], v.xy[2 * base + 3], a) / 2;
-    let a0 = v.ang[base] * 360 / 256, a1 = v.ang[base + 1] * 360 / 256; let d = a1 - a0; if (d > 180) d -= 360; if (d < -180) d += 360;
-    const ang = a0 + d * a; const sp = lerp(v.spd[base], v.spd[base + 1], a);
-    v.pos[3 * m] = x; v.pos[3 * m + 1] = y; v.pos[3 * m + 2] = 0.3;
-    v.ori[3 * m] = 0; v.ori[3 * m + 1] = -ang; v.ori[3 * m + 2] = 0;
-    const ty = v.types[i]; const sc = VSCALE[ty] || VSCALE[0];
-    v.scl[3 * m] = sc[0]; v.scl[3 * m + 1] = sc[1]; v.scl[3 * m + 2] = sc[2];
-    const c = sp < 4 ? stopCol : (ty === 2 || ty === 1 ? trkCol : ty === 3 ? ztlCol : carCol);
-    v.col[4 * m] = c[0]; v.col[4 * m + 1] = c[1]; v.col[4 * m + 2] = c[2]; v.col[4 * m + 3] = 255;
-    m++;
+  // one slot per trip, so a picked index is the trip index in any frame; trips not on the road are parked far off-screen
+  for (let i = 0; i < m; i++) {
+    if (t < c.dep[i] || t > c.arr[i]) { if (draw) { c.pos[3 * i] = 1e8; c.pos[3 * i + 1] = 1e8; } continue; }
+    locate(c, i, t, LP); live.n++; ksum += LP.kmh;
+    if (!draw) continue;
+    c.pos[3 * i] = LP.x; c.pos[3 * i + 1] = LP.y; c.pos[3 * i + 2] = 0.3;
+    c.ori[3 * i] = 0; c.ori[3 * i + 1] = -LP.ang; c.ori[3 * i + 2] = 0;
+    const ty = c.type[i]; const sc = VSCALE[ty] || VSCALE[0];
+    c.scl[3 * i] = sc[0]; c.scl[3 * i + 1] = sc[1]; c.scl[3 * i + 2] = sc[2];
+    const col = LP.kmh < 5 ? stopCol : (ty === 2 || ty === 1 ? trkCol : ty === 3 ? ztlCol : carCol);
+    c.col[4 * i] = col[0]; c.col[4 * i + 1] = col[1]; c.col[4 * i + 2] = col[2]; c.col[4 * i + 3] = 255;
   }
-  vehView = { length: m, attributes: { getPosition: { value: v.pos.subarray(0, 3 * m), size: 3 }, getOrientation: { value: v.ori.subarray(0, 3 * m), size: 3 },
-    getScale: { value: v.scl.subarray(0, 3 * m), size: 3 }, getColor: { value: v.col.subarray(0, 4 * m), size: 4, normalized: true },
-    getFillColor: { value: v.col.subarray(0, 4 * m), size: 4, normalized: true } } };
+  live.kmh = live.n ? ksum / live.n : 0;
+  if (!draw || !live.n) { vehView = { length: 0 }; return; }
+  vehView = { length: m, attributes: { getPosition: { value: c.pos.subarray(0, 3 * m), size: 3 }, getOrientation: { value: c.ori.subarray(0, 3 * m), size: 3 },
+    getScale: { value: c.scl.subarray(0, 3 * m), size: 3 }, getColor: { value: c.col.subarray(0, 4 * m), size: 4, normalized: true },
+    getFillColor: { value: c.col.subarray(0, 4 * m), size: 4, normalized: true } } };
+}
+
+// ---------- follow one vehicle: a self-contained copy of its trip (it outlives hour files), its route drawn on the map
+const FP = {};
+function startFollow(c, i) {
+  const o = c.offs[i], n = c.offs[i + 1] - o, edge = c.edge.slice(o, o + n);
+  const km = new Float32Array(n + 1);   // route km at the start of each edge, counted from the departure point
+  for (let k = 0; k < n; k++) km[k + 1] = km[k] + roads.len[edge[k]] / 1000;
+  const d0 = c.dpos[i] / 255 * roads.len[edge[0]] / 1000, total = km[n - 1] + c.apos[i] / 255 * roads.len[edge[n - 1]] / 1000 - d0;
+  const f = { n: 1, type: c.type[i], dep: c.dep.slice(i, i + 1), arr: c.arr.slice(i, i + 1), offs: Uint32Array.of(0, n), edge,
+    exit: c.exit.slice(o, o + n), dpos: c.dpos.slice(i, i + 1), apos: c.apos.slice(i, i + 1), cur: new Uint16Array(1), km, d0, total, k: -1, paths: null,
+    since: performance.now(), from: S.vs && !RM ? [S.vs.longitude, S.vs.latitude, S.vs.zoom] : null };
+  f.ends = [{ ...roadPoint(edge[0], f.dpos[0] / 255 * roads.plen[edge[0]], {}), end: 0 }, { ...roadPoint(edge[n - 1], f.apos[0] / 255 * roads.plen[edge[n - 1]], {}), end: 1 }];
+  S.follow = f; S.sel = null;
+  if (!f.from && S.vs) S.vs = { ...S.vs, zoom: Math.max(S.vs.zoom, 16) };   // reduced motion: jump instead of easing in
+  $('fType').textContent = `Following a ${VNAME[f.type] || 'car'}`;
+  $('fWhen').textContent = `${hhmm(f.dep[0])} → ${hhmm(f.arr[0])}`;
+  $('follow').hidden = false; drawSpots();
+}
+function stopFollow() { S.follow = null; $('follow').hidden = true; }
+function routePath(f, k0, k1) { // flat XY path through route edges k0..k1-1
+  const st = roads.start; let len = 0;
+  for (let k = k0; k < k1; k++) len += st[f.edge[k] + 1] - st[f.edge[k]];
+  const out = new Float32Array(len * 2); let o = 0;
+  for (let k = k0; k < k1; k++) { const e = f.edge[k]; out.set(roads.pos.subarray(st[e] * 2, st[e + 1] * 2), o); o += (st[e + 1] - st[e]) * 2; }
+  return out;
+}
+// metres in the scene frame -> lon/lat, with the same projection deck.gl uses for METER_OFFSETS
+let MVP = null;
+const toLngLat = (x, y) => (MVP || (MVP = new D.WebMercatorViewport({ longitude: meta.origin[0], latitude: meta.origin[1] }))).addMetersToLngLat(meta.origin, [x, y]);
+function updateFollow(now) {
+  const f = S.follow; if (!f) return;
+  const tc = f.arr[0] > 86400 && S.t < f.arr[0] - 86400 ? S.t + 86400 : S.t;   // a trip running past midnight goes on after the clock wraps
+  const t = Math.min(Math.max(tc, f.dep[0]), f.arr[0]);
+  locate(f, 0, t, FP);
+  if (FP.k !== f.k) { f.k = FP.k; f.paths = [{ p: routePath(f, 0, f.k + 1), done: 1 }, { p: routePath(f, f.k, f.offs[1]), done: 0 }]; }
+  // ease the camera onto the vehicle over 1.2 s, then stay locked on it; zoom, tilt and rotation stay with the user
+  if (S.vs) {
+    const [lon, lat] = toLngLat(FP.x, FP.y); const u = f.from ? Math.min(1, (now - f.since) / 1200) : 1, w = u * u * (3 - 2 * u);
+    const fr = f.from || [lon, lat, S.vs.zoom];
+    const vs = { ...S.vs, longitude: lerp(fr[0], lon, w), latitude: lerp(fr[1], lat, w), zoom: u < 1 ? lerp(fr[2], Math.max(fr[2], 16), w) : S.vs.zoom,
+      transitionDuration: 0, transitionInterpolator: null };
+    S.vs = vs; S.zoom = vs.zoom; deckgl.setProps({ initialViewState: vs });
+  }
+  const done = Math.max(0, f.km[FP.k] + FP.f * roads.len[FP.e] / 1000 - f.d0);
+  $('fBar').style.width = `${Math.min(100, done / Math.max(0.01, f.total) * 100).toFixed(1)}%`;
+  const txt = tc < f.dep[0] ? `Departs at ${hhmm(f.dep[0])} · ${fmt(f.total, 1)} km trip`
+    : tc >= f.arr[0] ? `Arrived after ${fmt(f.total, 1)} km in ${Math.round((f.arr[0] - f.dep[0]) / 60)} min`
+    : `${fmt(done, 1)} of ${fmt(f.total, 1)} km · ${fmt(FP.kmh)} km/h · ${meta.road_names[roads.name[FP.e]] || 'unnamed road'}`;
+  if ($('fMeta').textContent !== txt) $('fMeta').textContent = txt;
 }
 function boxMesh() {
   const P = [], N = [], U = [];
@@ -356,17 +458,17 @@ function boxMesh() {
 const MESH = boxMesh();
 
 // ---------- road colouring
-function roadColor(i) {
-  const E = edgesData[S.day]; if (!E) return C.road;
-  const k = S.hour * roads.n + i; const s = E.spd[k];
+function roadColorAt(E, h, i) {
+  const k = h * roads.n + i; const s = E.spd[k];
   if (s === 255) return [C.road[0], C.road[1], C.road[2], 150];
   if (S.mode === 'speed') return ramp(speedStops(), s / 200);
   if (S.mode === 'vol') return ramp(volStops(), E.flow[k] / Math.max(1, roads.lanes[i]));
   return ramp(delayStops(), E.delay[k] / Math.max(0.05, roads.len[i] / 1000));
 }
+function roadColor(i) { const E = edgesData[S.day]; return E ? mix(roadColorAt(E, B[0], i), roadColorAt(E, B[1], i), B[2]) : C.road; }
 function roadWidth(i) {
   const base = Math.max(1, roads.lanes[i]) * 3.3;
-  if (S.mode === 'vol') { const E = edgesData[S.day]; const f = E ? E.flow[S.hour * roads.n + i] : 0; return Math.max(base * 0.7, Math.sqrt(f) * 0.9); }
+  if (S.mode === 'vol') { const E = edgesData[S.day]; const f = E ? lerp(E.flow[B[0] * roads.n + i], E.flow[B[1] * roads.n + i], B[2]) : 0; return Math.max(base * 0.7, Math.sqrt(f) * 0.9); }
   return base;
 }
 const MINPX = [2.4, 1.8, 2.0, 1.6, 1.2, 0.8, 0.6, 0.6];
@@ -405,30 +507,36 @@ function layers() {
   const roadProps = { ...COORD, positionFormat: 'XY', _pathType: 'open',
     getPath: (i) => roads.pos.subarray(roads.start[i] * 2, roads.start[i + 1] * 2), getWidth: roadWidth, widthUnits: 'meters',
     widthMaxPixels: 40, getColor: roadColor, capRounded: true, jointRounded: true, pickable: true, autoHighlight: true, highlightColor: [255, 255, 255, 90],
-    updateTriggers: { getColor: [S.day, S.hour, S.mode, themeRev, !!edgesData[S.day]], getWidth: [S.mode, S.mode === 'vol' ? S.day + S.hour : 0] } };
+    updateTriggers: { getColor: [S.day, S.ct, S.mode, themeRev, !!edgesData[S.day]], getWidth: [S.mode, S.mode === 'vol' ? S.day + S.ct : 0] } };
   L.push(new D.PathLayer({ id: 'roads-minor', data: roads.minor, widthMinPixels: 0.7, opacity: 0.7, ...roadProps }));
   L.push(new D.PathLayer({ id: 'roads', data: roads.major, widthMinPixels: 1.6, ...roadProps }));
   L.push(new D.SolidPolygonLayer({ id: 'walls', ...COORD, data: DATA.wall,
     positionFormat: 'XY', _normalize: false, extruded: true, getElevation: 12, getFillColor: C.wall, material: { ambient: .55, diffuse: .55 }, updateTriggers: { getFillColor: themeRev } }));
   if (S.layers.bld) L.push(new D.SolidPolygonLayer({ id: 'buildings', ...COORD, data: DATA.bld,
     positionFormat: 'XY', _normalize: false, extruded: true, getFillColor: C.bldA, material: { ambient: .45, diffuse: .65, shininess: 8, specularColor: [40, 40, 40] }, updateTriggers: { getFillColor: themeRev } }));
+  const f = S.follow;
+  if (f && f.paths) for (const halo of [1, 0]) L.push(new D.PathLayer({ id: halo ? 'route-halo' : 'route', ...COORD, data: f.paths, positionFormat: 'XY', _pathType: 'open',
+    getPath: d => d.p, getWidth: halo ? 11 : 6, widthUnits: 'meters', widthMinPixels: halo ? 6 : 3, capRounded: true, jointRounded: true,
+    getColor: d => (halo ? [...C.halo.slice(0, 3), d.done ? 90 : 220] : [...C.accent.slice(0, 3), d.done ? 90 : 240]), updateTriggers: { getColor: themeRev } }));
   if (S.layers.veh && vehView.length) {
-    if (S.zoom >= 17) L.push(new D.SimpleMeshLayer({ id: 'veh-mesh', ...COORD, data: vehView, mesh: MESH, sizeScale: 1, material: { ambient: .6, diffuse: .6 } }));
-    else L.push(new D.ScatterplotLayer({ id: 'veh-dots', ...COORD, data: vehView, radiusUnits: 'meters', getRadius: 3.4, radiusMinPixels: S.zoom < 13 ? 1.3 : 2.0, radiusMaxPixels: 7, stroked: false }));
+    if (S.zoom >= 17) L.push(new D.SimpleMeshLayer({ id: 'veh-mesh', ...COORD, data: vehView, mesh: MESH, sizeScale: 1, pickable: true, material: { ambient: .6, diffuse: .6 } }));
+    else L.push(new D.ScatterplotLayer({ id: 'veh-dots', ...COORD, data: vehView, radiusUnits: 'meters', getRadius: 3.4, radiusMinPixels: S.zoom < 13 ? 1.3 : 2.0, radiusMaxPixels: 7, stroked: false, pickable: true }));
   }
+  if (f) L.push(new D.ScatterplotLayer({ id: 'follow-marks', ...COORD, data: [...f.ends, { x: FP.x, y: FP.y, end: 2 }], getPosition: d => [d.x, d.y, 1],
+    radiusUnits: 'pixels', getRadius: d => (d.end === 2 ? 11 : 6), stroked: true, filled: true, lineWidthUnits: 'pixels', getLineWidth: 2.5,
+    getFillColor: d => (d.end === 1 ? C.accent : [0, 0, 0, 0]), getLineColor: C.accent, updateTriggers: { getPosition: S.t, getFillColor: themeRev, getLineColor: themeRev } }));
   if (S.layers.hot) {
-    const hd = hotData();
-    L.push(new D.ScatterplotLayer({ id: 'hot-ring', ...COORD, data: hd, getPosition: d => [d.x, d.y, 1], getRadius: d => 20 + Math.sqrt(d.delay_h[S.hour]) * 14, radiusUnits: 'meters',
-      stroked: true, filled: true, getFillColor: d => { const c = sevColor(d.delay_h[S.hour]); return [c[0], c[1], c[2], 30]; }, getLineColor: d => { const c = sevColor(d.delay_h[S.hour]); return [c[0], c[1], c[2], 200]; },
-      lineWidthUnits: 'pixels', getLineWidth: 1.5, updateTriggers: { getRadius: [S.day, S.hour], getFillColor: [S.day, S.hour, themeRev], getLineColor: [S.day, S.hour, themeRev] } }));
+    const hd = hotData(); const dh = d => blendOf(d.delay_h);
+    L.push(new D.ScatterplotLayer({ id: 'hot-ring', ...COORD, data: hd, getPosition: d => [d.x, d.y, 1], getRadius: d => 20 + Math.sqrt(dh(d)) * 14, radiusUnits: 'meters',
+      stroked: true, filled: true, getFillColor: d => { const c = sevColor(dh(d)); return [c[0], c[1], c[2], 30]; }, getLineColor: d => { const c = sevColor(dh(d)); return [c[0], c[1], c[2], 200]; },
+      lineWidthUnits: 'pixels', getLineWidth: 1.5, updateTriggers: { getRadius: [S.day, S.ct], getFillColor: [S.day, S.ct, themeRev], getLineColor: [S.day, S.ct, themeRev] } }));
     const tall = S.zoom < 16.2; const es = Math.round(Math.max(0.15, Math.min(1.6, 2 ** (13.3 - S.zoom))) * 20) / 20;
     if (tall) L.push(new D.ColumnLayer({ id: 'hot', ...COORD, data: hd, diskResolution: 16, radius: 14, extruded: true, pickable: true,
-      getPosition: d => [d.x, d.y], getElevation: d => 12 + d.delay_h[S.hour] * 10, elevationScale: es, getFillColor: d => { const c = sevColor(d.delay_h[S.hour]); return [c[0], c[1], c[2], S.sel === d.id ? 255 : 215]; },
-      getLineColor: [255, 255, 255, 200], material: { ambient: .7, diffuse: .4 }, updateTriggers: { getElevation: [S.day, S.hour], getFillColor: [S.day, S.hour, S.sel, themeRev] },
-      transitions: RM ? {} : { getElevation: 500 } }));
-    L.push(new D.TextLayer({ id: 'hot-rank', ...COORD, data: hd, getPosition: d => [d.x, d.y, tall ? (12 + d.delay_h[S.hour] * 10) * es + 20 : 6], getText: d => String(d.rank), getSize: 15, pickable: !tall,
+      getPosition: d => [d.x, d.y], getElevation: d => 12 + dh(d) * 10, elevationScale: es, getFillColor: d => { const c = sevColor(dh(d)); return [c[0], c[1], c[2], S.sel === d.id ? 255 : 215]; },
+      getLineColor: [255, 255, 255, 200], material: { ambient: .7, diffuse: .4 }, updateTriggers: { getElevation: [S.day, S.ct], getFillColor: [S.day, S.ct, S.sel, themeRev] } }));
+    L.push(new D.TextLayer({ id: 'hot-rank', ...COORD, data: hd, getPosition: d => [d.x, d.y, tall ? (12 + dh(d) * 10) * es + 20 : 6], getText: d => String(d.rank), getSize: 15, pickable: !tall,
       fontFamily: 'Barlow Condensed, Arial Narrow, sans-serif', fontWeight: 700, getColor: C.label, fontSettings: { sdf: true }, outlineWidth: 4, outlineColor: [...C.halo.slice(0, 3), 230],
-      billboard: true, updateTriggers: { getPosition: [S.day, S.hour, tall, es], getColor: themeRev, outlineColor: themeRev } }));
+      billboard: true, updateTriggers: { getPosition: [S.day, S.ct, tall, es], getColor: themeRev, outlineColor: themeRev } }));
   }
   if (S.layers.lbl) L.push(new D.TextLayer({ id: 'places', ...COORD, data: meta.places, getPosition: d => [d.p[0], d.p[1], 30], getText: d => d.n,
     getSize: d => d.k === 'city' || d.k === 'town' ? 15 : 12, sizeUnits: 'pixels', fontFamily: 'Barlow Condensed, Arial Narrow, sans-serif', fontWeight: 600,
@@ -440,7 +548,9 @@ function render() { if (deckgl) deckgl.setProps({ layers: layers() }); }
 
 // ---------- UI
 const fmt = (v, d = 0) => v.toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
-const hh = (h) => String(h).padStart(2, '0') + ':00';
+const pad2 = (v) => String(v).padStart(2, '0');
+const hh = (h) => pad2(h) + ':00';
+const hhmm = (t) => `${pad2(Math.floor(t / 3600) % 24)}:${pad2(Math.floor(t / 60) % 60)}`;
 function ctxText(day, h) {
   const k = summary[day].kpi; const peak = k.reduce((a, b) => (b.delay_vh > a.delay_vh ? b : a));
   if (day === 'wd') {
@@ -455,17 +565,20 @@ function ctxText(day, h) {
   if (h <= 6) return 'Night, network nearly empty';
   return 'Saturday off-peak';
 }
+// clock and KPIs: vehicles and speed are counted live from the replay, the rest blends the hourly figures
+function updateLive() {
+  const k = summary[S.day].kpi, b = hourBlend(S.t), at = (key) => lerp(k[b[0]][key], k[b[1]][key], b[2]);
+  $('clockTime').textContent = hhmm(S.t);
+  $('kVeh').textContent = fmt(vehSet ? live.n : at('veh_in_net'));
+  $('kSpd').textContent = fmt(vehSet && live.n ? live.kmh : at('avg_kmh'), 1);
+  $('kDel').textContent = fmt(at('delay_vh'));
+  $('kCong').textContent = fmt(at('cong_km'), 1);
+}
 function updatePanel() {
-  const k = summary[S.day].kpi[S.hour];
-  $('clockTime').innerHTML = `${hh(S.hour)}<small>–${hh((S.hour + 1) % 24)}</small>`;
   $('clockCtx').textContent = ctxText(S.day, S.hour);
-  $('kVeh').textContent = fmt(k.veh_in_net);
-  $('kSpd').textContent = fmt(k.avg_kmh, 1);
-  $('kDel').textContent = fmt(k.delay_vh);
-  $('kCong').textContent = fmt(k.cong_km, 1);
   $('chart').setAttribute('aria-valuenow', S.hour);
-  $('chart').setAttribute('aria-valuetext', hh(S.hour));
-  drawChart(); drawSpots(); drawLegend();
+  $('chart').setAttribute('aria-valuetext', hhmm(S.t));
+  updateLive(); drawChart(); drawSpots(); drawLegend();
 }
 function drawLegend() {
   let stops, ticks;
@@ -504,8 +617,8 @@ function selectSpot(id, fly) {
   S.sel = S.sel === id && !fly ? null : id;
   const h = hotData().find(x => x.id === id);
   if (h && fly) {
-    S.hour = h.peak_hour; onHour();
-    deckgl.setProps({ initialViewState: { longitude: h.lonlat[0], latitude: h.lonlat[1], zoom: 16.2, pitch: 58, bearing: (Math.random() * 60 - 30), transitionDuration: RM ? 0 : 1600,
+    stopFollow(); setTime(h.peak_hour * 3600 + 1800);
+    deckgl.setProps({ initialViewState: { ...S.vs, longitude: h.lonlat[0], latitude: h.lonlat[1], zoom: 16.2, pitch: 58, bearing: (Math.random() * 60 - 30), transitionDuration: RM ? 0 : 1600,
       transitionInterpolator: RM ? null : new D.FlyToInterpolator() } });
   }
   drawSpots(); render();
@@ -527,23 +640,32 @@ function drawChart() {
   const line = oth.map((v, h) => `${(pad.l + h * cw + cw / 2).toFixed(1)},${(pad.t + ih - v / mx * ih).toFixed(1)}`).join(' ');
   s += `<polyline points="${line}" fill="none" stroke="${st.getPropertyValue('--ink-3')}" stroke-width="1.2" stroke-dasharray="3 3"/>`;
   for (let h = 0; h < 24; h += (W < 500 ? 6 : 3)) s += `<text x="${(pad.l + h * cw + cw / 2).toFixed(1)}" y="${H - 3}" text-anchor="middle">${String(h).padStart(2, '0')}</text>`;
-  const xh = pad.l + S.hour * cw + cw / 2;
-  s += `<g class="hl"><text x="${Math.min(W - 40, Math.max(40, xh)).toFixed(1)}" y="10" text-anchor="middle">${hh(S.hour)} · ${fmt(cur[S.hour])} vh</text></g>`;
+  const xh = pad.l + S.t / 3600 * cw;
+  s += `<line x1="${xh.toFixed(1)}" x2="${xh.toFixed(1)}" y1="${pad.t - 2}" y2="${pad.t + ih}" stroke="${st.getPropertyValue('--ink')}" stroke-width="1.5"/>`;
+  s += `<g class="hl"><text x="${Math.min(W - 40, Math.max(40, xh)).toFixed(1)}" y="10" text-anchor="middle">${hhmm(S.t)} · ${fmt(blendOf(cur, hourBlend(S.t)))} vh/h</text></g>`;
   const legLeft = xh > W / 2;
   if (W > 560) s += `<text x="${legLeft ? 4 : W - 4}" y="10" text-anchor="${legLeft ? 'start' : 'end'}">network delay per hour · bars ${DAYS[S.day].toLowerCase()} · dashed ${DAYS[S.day === 'wd' ? 'sat' : 'wd'].toLowerCase()}</text>`;
   svg.innerHTML = s;
 }
-function hourFromEvent(e) { const r = $('chart').getBoundingClientRect(); return Math.max(0, Math.min(23, Math.floor((e.clientX - r.left - 4) / ((r.width - 8) / 24)))); }
+function timeFromEvent(e) { const r = $('chart').getBoundingClientRect(); return Math.max(0, Math.min(86399, Math.round((e.clientX - r.left - 4) / (r.width - 8) * 1440) * 60)); }
 
-async function onHour() {
-  updatePanel(); render();
-  const v = await loadVeh(S.day, S.hour);
-  veh = v; if (v && S.t > v.dur) S.t = 0;
-  loadVeh(S.day, (S.hour + 1) % 24); // prefetch
+function setTime(t) {
+  S.t = t; const h = Math.floor(t / 3600);
+  if (h !== S.hour) { S.hour = h; onHour(); }
+}
+// the clock entered another hour, or the day changed: refresh the hourly parts and drop trip files away from the clock
+function onHour() {
+  updatePanel();
+  const keep = [S.hour, (S.hour + 1) % 24, (S.hour + 23) % 24].map(h => `${S.day}_${pad2(h)}`);
+  for (const k in tripCache) if (!keep.includes(k)) delete tripCache[k];
 }
 async function setDay(d) {
   S.day = d; $('dayWd').setAttribute('aria-pressed', d === 'wd'); $('daySat').setAttribute('aria-pressed', d === 'sat');
-  await loadDay(d); S.sel = null; onHour();
+  stopFollow(); await loadDay(d); S.sel = null; onHour();
+}
+function setPlaying(p) {
+  S.playing = p; $('playIcon').innerHTML = p ? '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>' : '<path d="M7 4l13 8-13 8z"/>';
+  $('playBtn').setAttribute('aria-label', p ? 'Pause the day' : 'Play the day');
 }
 function setMode(m) { S.mode = m; ['mSpeed', 'mVol', 'mDelay'].forEach((id, k) => $(id).setAttribute('aria-pressed', ['speed', 'vol', 'delay'][k] === m)); drawLegend(); render(); }
 
@@ -560,19 +682,26 @@ function aboutHTML() {
   <p style="color:var(--ink-3)">${a.credits}</p>`;
 }
 
-// ---------- animation loop
-let last = performance.now(), hourTimer = 0;
+// ---------- animation loop: the clock runs continuously through the day
+let last = performance.now(), lastLive = -1e9, lastMin = -1;
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
-  if (veh) {
-    if (!RM || S.playing) S.t += dt * S.mult;
-    if (S.t > veh.dur) {
-      S.t = 0;
-      if (S.playing) { S.hour = (S.hour + 1) % 24; onHour(); }
-    }
+  if (S.playing) {
+    let t = S.t + dt * S.mult;
+    // hold at the hour boundary until the next hour's trips are in (the call also prefetches them)
+    if (trips(S.day, (S.hour + 1) % 24) === undefined) t = Math.min(t, (S.hour + 1) * 3600 - 0.001);
+    setTime(t >= 86400 ? t - 86400 : t);
   }
-  updateVehicles(); render();
+  tick(now);
   requestAnimationFrame(frame);
+}
+function tick(now) {
+  const ct = Math.floor(S.t / 120);
+  if (ct !== S.ct) { S.ct = ct; B = hourBlend(ct * 120 + 60); }
+  updateVehicles(); updateFollow(now);
+  if (now - lastLive > 200) { lastLive = now; updateLive(); }
+  const mn = Math.floor(S.t / 60); if (mn !== lastMin) { lastMin = mn; drawChart(); }
+  render();
 }
 
 async function main() {
@@ -591,15 +720,16 @@ async function main() {
     sun: new D._SunLight({ timestamp: Date.UTC(2026, 9, 13, 9, 30), color: [255, 250, 240], intensity: 1.6, _shadow: false }) });
   const narrow = window.innerWidth < 760;
   S.zoom = QZ ? +QZ[1] : (narrow ? 12.4 : 13.25);
-  deckgl = new D.DeckGL({ container: 'scene', effects: [lighting],
-    initialViewState: QZ ? { longitude: 10.4955, latitude: 43.8396, zoom: +QZ[1], pitch: 60, bearing: -25, maxPitch: 75, minZoom: 11, maxZoom: 19 } : { longitude: narrow ? 10.507 : 10.493, latitude: narrow ? 43.838 : 43.846, zoom: narrow ? 12.4 : 13.25, pitch: 52, bearing: -18, maxPitch: 75, minZoom: 11, maxZoom: 19 },
-    controller: { inertia: true }, layers: [],
-    onViewStateChange: ({ viewState }) => { S.zoom = viewState.zoom; },
+  S.vs = QZ ? { longitude: 10.4955, latitude: 43.8396, zoom: +QZ[1], pitch: 60, bearing: -25, maxPitch: 75, minZoom: 11, maxZoom: 19 } : { longitude: narrow ? 10.507 : 10.493, latitude: narrow ? 43.838 : 43.846, zoom: narrow ? 12.4 : 13.25, pitch: 52, bearing: -18, maxPitch: 75, minZoom: 11, maxZoom: 19 };
+  deckgl = new D.DeckGL({ container: 'scene', effects: [lighting], initialViewState: S.vs, controller: { inertia: true }, layers: [], pickingRadius: 4,
+    onViewStateChange: ({ viewState }) => { S.vs = viewState; S.zoom = viewState.zoom; },
     getTooltip: null, onHover: onHover, onClick: onClick,
     getCursor: ({ isHovering, isDragging }) => isDragging ? 'grabbing' : (isHovering ? 'pointer' : 'grab') });
-  await onHour();
+  updatePanel();
+  trips(S.day, S.hour); await tripCache[`${S.day}_${pad2(S.hour)}`].p;
   $('loading').classList.add('done');
-  if (STILL) { S.t = 30; updateVehicles(); render(); } else requestAnimationFrame(frame);
+  setPlaying(!RM && !STILL);
+  if (STILL) tick(performance.now()); else requestAnimationFrame(frame);
   // background-load the other day
   loadDay(S.day === 'wd' ? 'sat' : 'wd');
   $('dayWd').setAttribute('aria-pressed', S.day === 'wd'); $('daySat').setAttribute('aria-pressed', S.day === 'sat');
@@ -612,6 +742,9 @@ function onHover(info) {
     const i = info.object; const E = edgesData[S.day]; const k = S.hour * roads.n + i; const s = E.spd[k];
     const nm = meta.road_names[roads.name[i]] || 'Unnamed road'; const lim = roads.speed[i] * 3.6;
     html = `<b>${nm}</b>${roads.ztl[i] ? ' <span class="chip">ZTL</span>' : ''}<div class="m">${s === 255 ? 'no traffic this hour' : `${fmt(s / 200 * lim)} km/h of ${fmt(lim)} · ${fmt(E.flow[k])} veh/h<br>${fmt(E.delay[k])} veh-min lost · ${roads.lanes[i]} lane${roads.lanes[i] > 1 ? 's' : ''}`}</div>`;
+  } else if (info.layer && info.layer.id.startsWith('veh') && vehSet && info.index < vehSet.n) {
+    const p = locate(vehSet, info.index, S.t, {});
+    html = `<b>${VNAME[vehSet.type[info.index]] || 'car'}</b><div class="m">${fmt(p.kmh)} km/h · ${meta.road_names[roads.name[p.e]] || 'unnamed road'}<br>click to follow its trip</div>`;
   } else if (info.layer && (info.layer.id === 'hot' || info.layer.id === 'hot-rank')) {
     const h = info.object; html = `<b>#${h.rank} ${spotName(h)}</b><div class="m">${fmt(h.delay_h[S.hour], 1)} veh-h lost ${hh(S.hour)}–${hh((S.hour + 1) % 24)}<br>${fmt(h.daily_delay_vh)} veh-h per day · peak ${hh(h.peak_hour)}</div>${h.note ? `<div style="margin-top:4px">${h.note}</div>` : ''}`;
   } else { tip.hidden = true; return; }
@@ -619,20 +752,29 @@ function onHover(info) {
   const x = Math.min(window.innerWidth - 270, info.x + 14), y = Math.max(8, info.y - 10);
   tip.style.left = x + 'px'; tip.style.top = y + 'px';
 }
-function onClick(info) { if (info.layer && (info.layer.id === 'hot' || info.layer.id === 'hot-rank') && info.object) selectSpot(info.object.id, false); }
+function onClick(info) {
+  if (!info.layer) return;
+  if ((info.layer.id === 'hot' || info.layer.id === 'hot-rank') && info.object) selectSpot(info.object.id, false);
+  else if (info.layer.id.startsWith('veh') && vehSet && info.index >= 0 && info.index < vehSet.n) startFollow(vehSet, info.index);
+}
 
 // ---------- wiring
 $('dayWd').onclick = () => setDay('wd'); $('daySat').onclick = () => setDay('sat');
 $('mSpeed').onclick = () => setMode('speed'); $('mVol').onclick = () => setMode('vol'); $('mDelay').onclick = () => setMode('delay');
 const toggle = (id, key) => { $(id).onchange = (e) => { S.layers[key] = e.target.checked; render(); }; };
 toggle('tVeh', 'veh'); toggle('tBld', 'bld'); toggle('tHot', 'hot'); toggle('tLbl', 'lbl');
-$('playBtn').onclick = () => { S.playing = !S.playing; $('playIcon').innerHTML = S.playing ? '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>' : '<path d="M7 4l13 8-13 8z"/>'; $('playBtn').setAttribute('aria-label', S.playing ? 'Pause the day' : 'Play the day'); };
+$('playBtn').onclick = () => setPlaying(!S.playing);
+$('fStop').onclick = stopFollow;
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.follow) stopFollow(); });
 document.querySelectorAll('.speed button').forEach(b => b.onclick = () => { S.mult = +b.dataset.s; document.querySelectorAll('.speed button').forEach(x => x.setAttribute('aria-pressed', x === b)); });
 let dragging = false;
-$('chart').addEventListener('pointerdown', e => { dragging = true; $('chart').setPointerCapture(e.pointerId); const h = hourFromEvent(e); if (h !== S.hour) { S.hour = h; onHour(); } });
-$('chart').addEventListener('pointermove', e => { if (!dragging) return; const h = hourFromEvent(e); if (h !== S.hour) { S.hour = h; onHour(); } });
+$('chart').addEventListener('pointerdown', e => { dragging = true; $('chart').setPointerCapture(e.pointerId); setTime(timeFromEvent(e)); });
+$('chart').addEventListener('pointermove', e => { if (dragging) setTime(timeFromEvent(e)); });
 $('chart').addEventListener('pointerup', () => { dragging = false; });
-$('chart').addEventListener('keydown', e => { if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { S.hour = (S.hour + 1) % 24; onHour(); e.preventDefault(); } if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { S.hour = (S.hour + 23) % 24; onHour(); e.preventDefault(); } });
+$('chart').addEventListener('keydown', e => {
+  const d = { ArrowRight: 3600, ArrowUp: 3600, ArrowLeft: -3600, ArrowDown: -3600 }[e.key];
+  if (d) { setTime((S.t + d + 86400) % 86400); e.preventDefault(); }
+});
 $('sheetBtn').onclick = () => $('panel').classList.toggle('collapsed');
 if (window.innerWidth < 760) $('panel').classList.add('collapsed');
 window.addEventListener('resize', () => summary && drawChart());

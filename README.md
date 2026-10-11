@@ -21,13 +21,14 @@ individually.
 
 | | |
 |---|---|
-| **Roads** | Coloured for the selected hour by speed (simulated speed ÷ speed limit), volume (vehicles/h per lane) or delay (vehicle-minutes lost per km). |
-| **Vehicles** | A replay of the actual SUMO trajectories: a 90-second slice recorded at HH:29 of every hour. Dark (light theme) or white (dark theme) = cars, orange = vans and lorries, blue = ZTL permit holders, red = stopped. |
-| **Critical points** | The 12 junction clusters with the most daily delay. Column height = delay in the selected hour; click one to fly to it at its peak hour. |
-| **24-hour strip** | Network-wide delay per hour (bars = selected day, dashed = the other day). Drag to change the hour; **Play** runs through the day. |
-| **Panel** | Vehicles on the network, average speed, delay and km of congested road for the hour, plus the method, the calibration table and the sources. |
+| **Clock** | The simulation runs as a continuous 24-hour clock at 1×, 10×, 60× or 360× real time. Traffic builds up and fades minute by minute; nothing restarts when the hour changes. At midnight the clock wraps to the start of the same simulated day, which begins with an empty network. |
+| **Roads** | Coloured by speed (simulated speed ÷ speed limit), volume (vehicles/h per lane) or delay (vehicle-minutes lost per km). The hourly averages are blended as the clock moves, so colours change gradually. |
+| **Vehicles** | Every simulated trip, replayed from departure to arrival along the route SUMO chose, at the times each vehicle entered and left every road. Dark (light theme) or white (dark theme) = cars, orange = vans and lorries, blue = ZTL permit holders, red = crawling (under 5 km/h). **Click a vehicle to follow it**: the camera tracks it, its route is drawn, and a card shows departure, arrival, distance and speed. |
+| **Critical points** | The 12 junction clusters with the most daily delay. Column height = delay at the current time; click one to fly to it at its peak hour. |
+| **24-hour strip** | Network-wide delay per hour (bars = selected day, dashed = the other day) with the clock's playhead. Drag to scrub through the day; **Play** runs the clock. |
+| **Panel** | Vehicles on the road and their average speed right now (counted from the replay), delay and km of congested road (blended hourly figures), plus the method, the calibration table and the sources. |
 
-Deep links: `?h=8` opens 08:00, `?d=sat` opens Saturday, `?z=16` zooms in. For example, [`?d=sat&h=11`](https://mastro993.github.io/lucca-traffic-twin/?d=sat&h=11) opens the Saturday 11:00 peak.
+Deep links: `?h=8` opens 08:00 (`?h=8.5` opens 08:30), `?d=sat` opens Saturday, `?z=16` zooms in. For example, [`?d=sat&h=11`](https://mastro993.github.io/lucca-traffic-twin/?d=sat&h=11) opens the Saturday 11:00 peak.
 
 | Saturday 11:00 | Weekday 17:00, close-up (dark mode) |
 |---|---|
@@ -71,7 +72,7 @@ Also high on the list: the north end of the Monte San Quirico bridge, Ponte a Mo
 ```
 OpenStreetMap ──► netconvert ──► SUMO network ──┐
 OpenMapTiles buildings + land use ──► zones ─────┼──► tour-based demand ──► SUMO 24 h microsimulation ──► edge data ──► critical points ──► web viewer
-ISTAT population, traffic counts ──► calibration ┘                         (TraCI: vehicle replays)
+ISTAT population, traffic counts ──► calibration ┘                         (vehroutes: trip replay)
 ```
 
 ### Network
@@ -102,7 +103,7 @@ A tour-based synthetic population, `05_generate_demand.py`:
 ### Simulation
 - **Simulator:** Eclipse SUMO 1.28 microscopic, 1 s steps, Krauss car-following, LC2013 lane changing.
 - **Route choice:** dynamic. Vehicles route on current travel times when they depart and reroute every 5 minutes, with a small penalty for low-priority roads to avoid unrealistic rat-runs. This approximates a dynamic user equilibrium without iterating.
-- **Recording:** the run is driven through TraCI (`07_run_simulation.py`). It writes hourly edge statistics and records the vehicle replays.
+- **Recording:** `07_run_simulation.py` writes hourly edge statistics and every vehicle's final route with the time it left each road (SUMO vehroute output with exit times), which the viewer replays.
 - **Teleports:** vehicles stuck for more than 3 minutes are teleported, standard SUMO practice. This affected 1.7% of trips on the weekday and 1.3% on Saturday.
 - **Trip averages:** 9.6 km and 14 min on a weekday (4.5 min lost); 9.5 km and 12 min on Saturday.
 
@@ -142,7 +143,7 @@ demand/
   weekday.trips.xml.gz        339,525 trips (exactly the demand used for the results)
   saturday.trips.xml.gz       299,048 trips
 results/
-  weekday/, saturday/         hourly edgeData (SUMO meandata) and run statistics
+  weekday/, saturday/         hourly edgeData (SUMO meandata) and run statistics (tripinfo and vehroutes are not committed)
   *_results.json              hourly KPIs and ranked critical points
   calibration.json, run_stats.json
 scripts/                      the pipeline (01–11), shared helpers and diagnostics
@@ -170,8 +171,8 @@ The pipeline is deterministic. With fixed random seeds, the committed network an
 | 4 | `04_build_zones.py` | zones, trip-end weights, gateways, travel-time matrix |
 | 5 | `05_generate_demand.py <day> [scale]` | `demand/<day>.trips.xml.gz` |
 | 6 | `06_export_static.py` | viewer scene: buildings, land cover, walls, roads |
-| 7 | `07_run_simulation.py <day> [trips]` | `results/<day>/` + vehicle replays |
-| 8 | `08_export_results.py <day>` | per-edge hourly metrics, KPIs, critical points |
+| 7 | `07_run_simulation.py <day> [trips]` | `results/<day>/`: edge data, statistics, tripinfo, vehroutes |
+| 8 | `08_export_results.py <day>` | per-edge hourly metrics, KPIs, critical points, trip replay |
 | 9 | `09_check_counts.py` | `results/calibration.json` |
 | 10 | `10_build_summary.py` | `docs/data/summary.json` |
 | 11 | `11_pack_web.py` | `docs/data/*.b64.txt` |
@@ -190,7 +191,7 @@ The viewer is one HTML file using [deck.gl](https://deck.gl) 8.9, with no build 
 **Binary files.** They are stored as gzip + base64 text so the same page also works on hosts that only serve text:
 - `static`: typed arrays for buildings, ground, roads and walls, indexed in `static.json`.
 - `<day>_edges`: uint8 speed ratio, uint16 flow, delay and density per edge and hour.
-- `veh/<day>_HH`: the `LVF2` vehicle replay. A 20-byte header, a per-vehicle table, then delta-coded int16 positions at 0.5 m resolution, plus heading and speed every 2 s.
+- `trips/<day>_HH`: the `LTR1` trip replay, one file per hour holding every vehicle on the road during that hour, so any clock time needs a single file. A 16-byte header (magic, vehicles, route edges, hour start), then per vehicle the uint32 departure second and the uint16 route length; per route edge a uint16 road index and the uint16 seconds since the previous exit; finally per vehicle the type and the departure and arrival positions on their edges (uint8, 0–255 of the edge length). The viewer moves each vehicle at constant speed along each road between its entry and exit times.
 
 **Coordinates** are local metres in the SUMO/UTM frame, relative to Piazza San Michele.
 

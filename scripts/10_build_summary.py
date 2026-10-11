@@ -82,8 +82,9 @@ out['stats'] = stats
 st = out['stats']
 out['about'] = {
     'intro': ('A 24-hour digital twin of road traffic in Lucca and the surrounding plain (about 16 × 13 km, from Ponte a Moriano to the A11). '
-              'Every vehicle is simulated individually; road colours show the hourly average from the simulation, and the moving vehicles replay a 90-second slice '
-              'recorded at half past each hour. It is a model calibrated to published counts, not a live traffic feed.'),
+              'Every vehicle is simulated individually. The moving vehicles replay every simulated trip from departure to arrival, along the route and at the '
+              'times SUMO recorded for each road; road colours blend the hourly averages as the clock runs. It is a model calibrated to published counts, '
+              'not a live traffic feed.'),
     'network': ('OpenStreetMap road graph converted with SUMO netconvert: about 1,700 km of road, 10,332 directed links, signalised and priority junctions, '
                 'roundabouts, OSM turn restrictions and lane counts. Inside the Walls the ZTL is closed to general traffic and open only to permit holders, '
                 'taxis, buses and deliveries. Speed limits are 50 km/h in built-up areas, 70–90 km/h outside, and 130 km/h on the A11.'),
@@ -93,7 +94,7 @@ out['about'] = {
                'On top of that: commuters and visitors entering through 62 boundary roads, through traffic on the A11, vans and lorries, and ZTL permit traffic. '
                f"Weekday: {st.get('wd_trips', 355808):,} vehicle trips. Saturday: {st.get('sat_trips', 311988):,} (0.88 × weekday, the ratio measured on SR439)."),
     'sim': ('Eclipse SUMO 1.28 microscopic simulation: Krauss car-following, LC2013 lane changing, 1-second steps. Route choice is dynamic: every vehicle routes on current travel times '
-            'when it departs and reroutes every 5 minutes, an approximation of dynamic user equilibrium. Vehicles stuck for more than 5 minutes are teleported, as is standard in SUMO. '
+            'when it departs and reroutes every 5 minutes, an approximation of dynamic user equilibrium. Vehicles stuck for more than 3 minutes are teleported, as is standard in SUMO. '
             + (f"Teleports: {st.get('wd_teleports', 0):,} on the weekday and {st.get('sat_teleports', 0):,} on Saturday." if st else '')),
     'hotspots': ('Junctions are grouped into clusters: roundabouts, and nodes linked by edges shorter than 45 m. Each cluster is scored by the vehicle-hours lost on its approach links, '
                  'measured as SUMO time loss against free-flow speed. Insertion queues on the boundary roads are excluded. The ranking uses daily totals; the 3D columns show the selected hour.'),

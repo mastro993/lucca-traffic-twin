@@ -1,7 +1,8 @@
-"""Turn SUMO edgeData into per-edge hourly metrics (for the viewer), hourly KPIs and ranked critical points.
-Output: build/web/<key>_edges.bin, results/<day>_results.json
+"""Turn SUMO edgeData into per-edge hourly metrics (for the viewer), hourly KPIs and ranked critical points,
+and the vehicle routes (vehroutes.xml.gz, when the run wrote it) into the viewer's trip replay.
+Output: build/web/<key>_edges.bin, build/web/trips/<key>_HH.bin, results/<day>_results.json
 usage: python3 scripts/08_export_results.py <weekday|saturday>"""
-import sys, json, math, collections, gzip
+import sys, json, math, collections, gzip, struct
 import numpy as np, sumolib
 from lxml import etree
 from common import NET, EDGE_IDS, ZONES, RESULTS, WEBRAW, ORIGIN, zopen, read_net
@@ -116,3 +117,31 @@ json.dump({'kpi': kpi, 'hotspots': top}, open(RESULTS / f'{day}_results.json', '
 print(key, 'daily delay veh-h', round(sum(k['delay_vh'] for k in kpi)), 'veh-km', sum(k['veh_km'] for k in kpi))
 for s in top[:15]:
     print(f"{s['daily_delay_vh']:7.1f} vh  peak {s['peak_hour']:02d}h {s['peak_delay_vh']:6.1f}  {s['control']:10s} {' / '.join(s['streets'])}  @{s['lonlat'][1]:.4f},{s['lonlat'][0]:.4f}")
+
+# ---------------- trip replay: every vehicle's route with its edge exit times (LTR1), one file per hour holding
+# every vehicle on the road during that hour, so the viewer needs a single file for any clock time
+vr = run / 'vehroutes.xml.gz'
+if not vr.exists(): print('no vehroutes.xml.gz, trip replay not exported'); sys.exit()
+TYPES = {'car': 0, 'van': 1, 'truck': 2, 'ztl': 3}
+frac = lambda d, e: min(255, max(0, round(d / max(lens[e], 0.1) * 255)))   # position along the edge, 0-255
+apos = {}
+for _, el in etree.iterparse(zopen(run / 'tripinfo.xml.gz', 'rb'), tag='tripinfo'):
+    apos[el.get('id')] = float(el.get('arrivalPos')); el.clear()
+trips = []   # (depart, id, type, depart pos, arrival pos, edges, exit-time deltas, arrival)
+for _, el in etree.iterparse(zopen(vr, 'rb'), tag='vehicle'):
+    r = el.find('route'); vid = el.get('id'); dep = round(float(el.get('depart')))
+    E = [eidx.get(e) for e in r.get('edges').split()]; X = [round(float(x)) for x in r.get('exitTimes').split()]
+    if len(E) == len(X) and None not in E and vid in apos:
+        trips.append((dep, vid, TYPES.get(el.get('type'), 0), frac(float(el.get('departPos')), E[0]), frac(apos[vid], E[-1]),
+                      np.array(E, np.uint16), np.diff([dep] + X).clip(0, 65535).astype(np.uint16), X[-1]))
+    el.clear()
+trips.sort(key=lambda t: (t[0], t[1]))
+(WEBRAW / 'trips').mkdir(exist_ok=True)
+for h in range(NH):
+    sel = [t for t in trips if t[0] < (h + 1) * 3600 and t[7] >= h * 3600]
+    with open(WEBRAW / 'trips' / f'{key}_{h:02d}.bin', 'wb') as f:
+        f.write(b'LTR1' + struct.pack('<III', len(sel), sum(len(t[5]) for t in sel), h * 3600))
+        f.write(np.array([t[0] for t in sel], np.uint32).tobytes()); f.write(np.array([len(t[5]) for t in sel], np.uint16).tobytes())
+        for col in (5, 6): f.write(np.concatenate([t[col] for t in sel] or [np.zeros(0, np.uint16)]).tobytes())
+        for col in (2, 3, 4): f.write(np.array([t[col] for t in sel], np.uint8).tobytes())
+print(key, 'trip replay', len(trips), 'vehicles, max trip', max(t[7] - t[0] for t in trips) // 60, 'min')
