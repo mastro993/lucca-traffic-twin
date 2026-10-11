@@ -1,0 +1,10 @@
+# Python 3.10+
+eclipse-sumo==1.28.0      # SUMO binaries (sumo, netconvert, duarouter) + tools
+sumolib
+traci
+numpy
+scipy
+shapely>=2.0
+lxml
+mapbox-vector-tile
+rtree

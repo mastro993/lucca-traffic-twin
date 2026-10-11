@@ -1,0 +1,9 @@
+build/
+__pycache__/
+*.pyc
+.DS_Store
+results/*/tripinfo.xml.gz
+results/*/edgedata_h.add.xml
+results/*/progress.log
+results/freeflow_*/
+results/_*/

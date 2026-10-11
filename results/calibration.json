@@ -1,0 +1,32 @@
+[
+ {
+  "label": "SR439 Via Sarzanese at Ponte San Pietro (station P058)",
+  "sim": 16485,
+  "obs": 14500,
+  "src": "Regione Toscana, 2019 and 2021 average"
+ },
+ {
+  "label": "SS12 Brennero, north of Lucca",
+  "sim": 19086,
+  "obs": 19068,
+  "src": "NEPA/ANAS counts, 2017"
+ },
+ {
+  "label": "SR435 Via Pesciatina at Antraccoli",
+  "sim": 11620,
+  "obs": 15272,
+  "src": "NEPA/ANAS counts, 2017"
+ },
+ {
+  "label": "Viale Europa, Capannori (busiest section)",
+  "sim": 15443,
+  "obs": 21062,
+  "src": "NEPA/ANAS counts, 2017"
+ },
+ {
+  "label": "Via Romana, east (busiest section)",
+  "sim": 22756,
+  "obs": 24140,
+  "src": "NEPA/ANAS counts, 2017"
+ }
+]

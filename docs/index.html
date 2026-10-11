@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="3D, hour-by-hour SUMO microsimulation of traffic in Lucca (Italy) with the critical junctions ranked by delay.">
+<title>Lucca Traffic Twin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="https://unpkg.com/deck.gl@8.9.36/dist.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+<style>
+html { color-scheme: light; } body { margin: 0; } [hidden] { display: none !important; }
+
+/* Layout: full-bleed 3D scene; a floating control column on the left (bottom sheet on phones);
+   a 24-hour strip docked at the bottom that doubles as the clock. */
+:root {
+  --bg: #e6e9e4;
+  --surface: rgba(249, 250, 247, 0.93);
+  --surface-solid: #f9faf7;
+  --ink: #1b2320;
+  --ink-2: #4b5752;
+  --ink-3: #7b8681;
+  --line: rgba(27, 35, 32, 0.12);
+  --accent: #2e6a4c;          /* the green of the tree-lined Walls */
+  --accent-soft: rgba(46, 106, 76, 0.12);
+  --focus: #1f6fd1;
+  --c-free: #22a891; --c-ok: #8fc25a; --c-busy: #f1bf3f; --c-slow: #ef7c3a; --c-jam: #d6283f; --c-stop: #7b0d33;
+  --v-1: #cfdcf3; --v-2: #7ea2e6; --v-3: #3d63c9; --v-4: #1d2a7a;
+  --scene-ground: #e2e5df; --scene-farm: #e7e6d7; --scene-green: #cddbc4; --scene-wood: #b9cdb0;
+  --scene-urban: #dddcd6; --scene-ind: #d7d4d9; --scene-civic: #dfd8cc; --scene-water: #9fc2d2;
+  --scene-bld: #dcd6cb; --scene-road: #b9bfba; --scene-rail: #8a8f8c; --scene-wall: #7b9a69;
+  --scene-car: #2b3330; --scene-label: #3c4642; --scene-halo: #eef0ec;
+  --font-display: 'Barlow Condensed', 'Arial Narrow', 'Roboto Condensed', sans-serif;
+  --font-body: 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --radius: 10px;
+  --shadow: 0 1px 2px rgba(20, 30, 25, .08), 0 8px 28px rgba(20, 30, 25, .12);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1312; --surface: rgba(17, 24, 22, 0.9); --surface-solid: #111816; --ink: #e5ebe8; --ink-2: #aab5b0; --ink-3: #74807b;
+    --line: rgba(229, 235, 232, 0.12); --accent: #7cc49b; --accent-soft: rgba(124, 196, 155, 0.14); --focus: #7fb2ff;
+    --v-1: #22355e; --v-2: #3f6fd6; --v-3: #86aefc; --v-4: #dce8ff;
+    --scene-ground: #121918; --scene-farm: #151c1a; --scene-green: #16241d; --scene-wood: #18291f;
+    --scene-urban: #171e1d; --scene-ind: #1b1e22; --scene-civic: #1d1c1a; --scene-water: #17323d;
+    --scene-bld: #2a3331; --scene-road: #2c3634; --scene-rail: #47504d; --scene-wall: #557f5b;
+    --scene-car: #f1efe6; --scene-label: #b9c4bf; --scene-halo: #0d1312;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1312; --surface: rgba(17, 24, 22, 0.9); --surface-solid: #111816; --ink: #e5ebe8; --ink-2: #aab5b0; --ink-3: #74807b;
+  --line: rgba(229, 235, 232, 0.12); --accent: #7cc49b; --accent-soft: rgba(124, 196, 155, 0.14); --focus: #7fb2ff;
+  --v-1: #22355e; --v-2: #3f6fd6; --v-3: #86aefc; --v-4: #dce8ff;
+  --scene-ground: #121918; --scene-farm: #151c1a; --scene-green: #16241d; --scene-wood: #18291f;
+  --scene-urban: #171e1d; --scene-ind: #1b1e22; --scene-civic: #1d1c1a; --scene-water: #17323d;
+  --scene-bld: #2a3331; --scene-road: #2c3634; --scene-rail: #47504d; --scene-wall: #557f5b;
+  --scene-car: #f1efe6; --scene-label: #b9c4bf; --scene-halo: #0d1312;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 14px; overflow: hidden; }
+#scene { position: fixed; inset: 0; }
+#scene canvas { outline: none; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.brand { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 14px); right: 16px; text-align: right; pointer-events: none; z-index: 3; }
+.brand h1 { text-shadow: 0 0 10px var(--bg), 0 0 3px var(--bg); margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 30px; letter-spacing: .02em; text-transform: uppercase; line-height: 1; text-wrap: balance; }
+.brand h1 span { color: var(--accent); }
+.brand p { text-shadow: 0 0 6px var(--bg), 0 0 2px var(--bg); margin: 4px 0 0; font-family: var(--font-mono); font-size: 11px; color: var(--ink-2); letter-spacing: .02em; }
+
+#panel { position: fixed; z-index: 4; left: 16px; top: calc(env(safe-area-inset-top, 0px) + 14px); bottom: 132px; width: 374px;
+  background: var(--surface); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow); display: flex; flex-direction: column; overflow: hidden; }
+#panel .scroll { overflow-y: auto; padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 16px; overscroll-behavior: contain; }
+#panel .scroll > * { flex-shrink: 0; }
+.sheet-handle { display: none; }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--line); padding: 3px; border-radius: 8px; gap: 3px; }
+.seg button { border: 0; background: transparent; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-family: var(--font-display); font-weight: 600;
+  font-size: 14px; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-2); }
+.seg button[aria-pressed="true"] { background: var(--surface-solid); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.label { font-family: var(--font-display); font-weight: 600; font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-3); }
+.clock { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.clock .time { font-family: var(--font-display); font-weight: 700; font-size: 44px; line-height: .95; letter-spacing: .01em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.clock .time small { font-size: 22px; color: var(--ink-3); font-weight: 600; margin-left: 2px; }
+.clock .ctx { font-size: 12px; color: var(--ink-2); text-align: right; max-width: 130px; }
+.kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.kpi { background: var(--surface-solid); padding: 8px 10px; min-width: 0; }
+.kpi b { display: block; font-family: var(--font-mono); font-weight: 500; font-size: 19px; font-variant-numeric: tabular-nums; }
+.kpi span { font-size: 11.5px; color: var(--ink-2); }
+.legend { display: grid; gap: 6px; }
+.legend .bar { height: 8px; border-radius: 4px; }
+.legend .ticks { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-3); }
+.spots { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.spot { display: grid; grid-template-columns: 26px 1fr auto; gap: 4px 10px; align-items: center; padding: 8px 8px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; }
+.spot:hover { background: var(--accent-soft); }
+.spot[aria-selected="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.spot .rk { font-family: var(--font-display); font-weight: 700; font-size: 18px; text-align: center; border-radius: 6px; line-height: 26px; color: #fff; }
+.spot .nm { font-weight: 600; font-size: 13.5px; line-height: 1.2; min-width: 0; }
+.spot .meta { grid-column: 2 / 3; display: flex; gap: 8px; align-items: center; font-size: 11px; color: var(--ink-2); min-width: 0; white-space: nowrap; overflow: hidden; }
+.spot .sp { grid-column: 3 / 4; justify-self: end; color: var(--ink-3); }
+.spot .val { font-family: var(--font-mono); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+.chip { font-family: var(--font-display); font-weight: 600; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--line); color: var(--ink-2); white-space: nowrap; }
+.spark { width: 72px; height: 18px; flex: none; }
+.spot .note { grid-column: 2 / 4; font-size: 12.5px; line-height: 1.45; color: var(--ink-2); padding-top: 4px; }
+.toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
+.toggles label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }
+.toggles input { accent-color: var(--accent); width: 15px; height: 15px; }
+details { border-top: 1px solid var(--line); padding-top: 12px; }
+details summary { cursor: pointer; font-family: var(--font-display); font-weight: 600; font-size: 14px; letter-spacing: .05em; text-transform: uppercase; }
+details .body { font-size: 13px; line-height: 1.5; color: var(--ink-2); display: grid; gap: 10px; margin-top: 10px; }
+details .body p { margin: 0; }
+details table { width: 100%; border-collapse: collapse; font-size: 12px; }
+details th, details td { text-align: left; padding: 4px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+details td.n, details th.n { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+details a { color: var(--accent); }
+
+#strip { position: fixed; z-index: 4; left: 16px; right: 16px; bottom: calc(env(safe-area-inset-bottom, 0px) + 14px); height: 104px;
+  background: var(--surface); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow); display: grid; grid-template-columns: auto 1fr; gap: 14px; padding: 10px 14px 8px; align-items: stretch; }
+.transport { display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+.play { width: 46px; height: 46px; border-radius: 50%; border: 0; background: var(--accent); color: var(--surface-solid); cursor: pointer; display: grid; place-items: center; }
+.play svg { width: 18px; height: 18px; fill: currentColor; }
+.speed { display: flex; gap: 2px; }
+.speed button { border: 1px solid var(--line); background: transparent; border-radius: 5px; padding: 1px 5px; font-family: var(--font-mono); font-size: 11px; cursor: pointer; color: var(--ink-2); }
+.speed button[aria-pressed="true"] { background: var(--ink); color: var(--surface-solid); border-color: var(--ink); }
+#chart { width: 100%; height: 100%; min-width: 0; cursor: pointer; touch-action: none; display: block; }
+#chart text { font-family: var(--font-mono); font-size: 10px; fill: var(--ink-3); }
+#chart .hl text { fill: var(--ink); font-weight: 500; }
+
+#tip { position: fixed; z-index: 6; pointer-events: none; background: var(--surface-solid); color: var(--ink); border: 1px solid var(--line); border-radius: 8px;
+  box-shadow: var(--shadow); padding: 8px 10px; font-size: 12.5px; line-height: 1.4; max-width: 260px; }
+#tip b { font-weight: 600; }
+#tip .m { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-2); }
+#loading { position: fixed; inset: 0; display: grid; place-items: center; z-index: 10; background: var(--bg); transition: opacity .5s; }
+#loading div { font-family: var(--font-display); font-size: 18px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); }
+#loading.done { opacity: 0; pointer-events: none; }
+.err { color: var(--c-jam); }
+
+@media (max-width: 760px) {
+  .brand { left: 16px; right: 16px; text-align: left; }
+  .brand h1 { font-size: 22px; }
+  .brand p { font-size: 10px; }
+  #strip { height: 84px; left: 8px; right: 8px; bottom: calc(env(safe-area-inset-bottom, 0px) + 8px); padding: 8px 10px 6px; gap: 8px; }
+  .play { width: 38px; height: 38px; }
+  .speed { display: none; }
+  #panel { left: 8px; right: 8px; width: auto; top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 100px); max-height: 44vh; }
+  #panel.collapsed { max-height: 132px; }
+  .sheet-handle { display: block; border: 0; background: transparent; width: 100%; padding: 6px 0 0; cursor: pointer; }
+  .sheet-handle::before { content: ''; display: block; width: 40px; height: 4px; border-radius: 2px; background: var(--ink-3); margin: 0 auto; opacity: .6; }
+  .clock .time { font-size: 34px; }
+}
+@media (prefers-reduced-motion: reduce) { #loading { transition: none; } }
+</style>
+</head>
+<body>
+<div id="scene" aria-label="3D view of Lucca with simulated traffic"></div>
+<div class="brand">
+  <h1>Lucca <span>Traffic</span> Twin</h1>
+  <p id="brandsub">Eclipse SUMO microsimulation · OpenStreetMap network</p>
+</div>
+
+<aside id="panel" aria-label="Simulation controls">
+  <button class="sheet-handle" id="sheetBtn" aria-label="Expand or collapse panel"></button>
+  <div class="scroll">
+    <div class="seg" role="group" aria-label="Day type">
+      <button id="dayWd" aria-pressed="true">Weekday</button>
+      <button id="daySat" aria-pressed="false">Saturday</button>
+    </div>
+    <div class="clock">
+      <div class="time" id="clockTime">08:00<small>–09:00</small></div>
+      <div class="ctx" id="clockCtx">School-day morning peak</div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><b id="kVeh">–</b><span>vehicles on the network</span></div>
+      <div class="kpi"><b id="kSpd">–</b><span>average speed, km/h</span></div>
+      <div class="kpi"><b id="kDel">–</b><span>delay this hour, vehicle-hours</span></div>
+      <div class="kpi"><b id="kCong">–</b><span>km of road below half speed</span></div>
+    </div>
+    <div class="legend">
+      <div class="label">Colour roads by</div>
+      <div class="seg" role="group" aria-label="Road colour metric">
+        <button id="mSpeed" aria-pressed="true">Speed</button>
+        <button id="mVol" aria-pressed="false">Volume</button>
+        <button id="mDelay" aria-pressed="false">Delay</button>
+      </div>
+      <div class="bar" id="legendBar"></div>
+      <div class="ticks" id="legendTicks"></div>
+    </div>
+    <div>
+      <div class="label" style="margin-bottom:6px; display:flex; justify-content:space-between" id="spotsTitle"><span>Critical points by daily delay</span><span>this hour</span></div>
+      <ol class="spots" id="spots"></ol>
+    </div>
+    <div class="toggles" role="group" aria-label="Layers">
+      <label><input type="checkbox" id="tVeh" checked> Vehicles</label>
+      <label><input type="checkbox" id="tBld" checked> Buildings</label>
+      <label><input type="checkbox" id="tHot" checked> Critical points</label>
+      <label><input type="checkbox" id="tLbl" checked> Place names</label>
+    </div>
+    <details id="about">
+      <summary>Method, data and limits</summary>
+      <div class="body" id="aboutBody"></div>
+    </details>
+  </div>
+</aside>
+
+<div id="strip">
+  <div class="transport">
+    <button class="play" id="playBtn" aria-label="Play the day"><svg viewBox="0 0 24 24" id="playIcon"><path d="M7 4l13 8-13 8z"/></svg></button>
+    <div class="speed" role="group" aria-label="Replay speed">
+      <button data-s="1" aria-pressed="false">1×</button><button data-s="4" aria-pressed="true">4×</button><button data-s="10" aria-pressed="false">10×</button>
+    </div>
+  </div>
+  <svg id="chart" role="slider" aria-label="Hour of day" aria-valuemin="0" aria-valuemax="23" aria-valuenow="8" tabindex="0"></svg>
+</div>
+<div id="tip" hidden></div>
+<div id="loading"><div id="loadMsg">Loading Lucca…</div></div>
+
+<script>
+(() => {
+'use strict';
+const D = deck;
+const $ = (id) => document.getElementById(id);
+const S = { day: 'wd', hour: 8, mode: 'speed', playing: false, mult: 4, t: 0, sel: null,
+  layers: { veh: true, bld: true, hot: true, lbl: true }, zoom: 13.4 };
+const DAYS = { wd: 'Weekday', sat: 'Saturday' };
+const RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const STILL = /still/.test(location.search);
+const QH = location.search.match(/[?&]h=(\d+)/), QZ = location.search.match(/[?&]z=([\d.]+)/);
+if (QH) S.hour = +QH[1];
+if (/[?&]d=sat/.test(location.search)) S.day = 'sat';
+
+// ---------- theme-aware colours read from CSS tokens
+let C = {};
+function hex2rgb(h) { h = h.trim(); if (h.startsWith('rgb')) { const m = h.match(/[\d.]+/g).map(Number); return [m[0], m[1], m[2], m[3] !== undefined ? Math.round(m[3] * 255) : 255]; }
+  h = h.replace('#', ''); if (h.length === 3) h = h.split('').map(c => c + c).join(''); const n = parseInt(h, 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255, 255]; }
+function readTokens() {
+  const cs = getComputedStyle(document.documentElement); const g = (k) => hex2rgb(cs.getPropertyValue(k));
+  C = { bg: g('--bg'), ground: g('--scene-ground'), farm: g('--scene-farm'), green: g('--scene-green'), wood: g('--scene-wood'), urban: g('--scene-urban'),
+    ind: g('--scene-ind'), civic: g('--scene-civic'), water: g('--scene-water'), bld: g('--scene-bld'), road: g('--scene-road'), rail: g('--scene-rail'),
+    wall: g('--scene-wall'), car: g('--scene-car'), bldA: [...g('--scene-bld').slice(0, 3), 240], label: g('--scene-label'), halo: g('--scene-halo'), accent: g('--accent'),
+    cong: ['--c-free', '--c-ok', '--c-busy', '--c-slow', '--c-jam', '--c-stop'].map(g), vol: ['--v-1', '--v-2', '--v-3', '--v-4'].map(g) };
+}
+const lerp = (a, b, t) => a + (b - a) * t;
+function ramp(stops, v) { // stops: [[value, rgb]...] ascending
+  if (v <= stops[0][0]) return stops[0][1];
+  for (let i = 1; i < stops.length; i++) if (v <= stops[i][0]) { const t = (v - stops[i - 1][0]) / (stops[i][0] - stops[i - 1][0]); const a = stops[i - 1][1], b = stops[i][1]; return [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t), 255]; }
+  return stops[stops.length - 1][1];
+}
+const speedStops = () => [[0.08, C.cong[5]], [0.25, C.cong[4]], [0.45, C.cong[3]], [0.62, C.cong[2]], [0.8, C.cong[1]], [0.95, C.cong[0]]];
+const volStops = () => [[0, C.vol[0]], [300, C.vol[1]], [800, C.vol[2]], [1600, C.vol[3]]];
+const delayStops = () => [[0, C.cong[0]], [20, C.cong[2]], [80, C.cong[3]], [250, C.cong[4]], [700, C.cong[5]]];
+
+// ---------- data
+const T = { float32: Float32Array, uint32: Uint32Array, uint16: Uint16Array, uint8: Uint8Array, int16: Int16Array };
+const M = {}; let meta, summary, roads = {}, bld, gnd, ww, wall, rail, edgesData = {}, vehCache = {}, veh = null;
+function view(buf, e) { return new T[e.dtype](buf, e.offset, e.length); }
+async function gunzip(u8) {
+  if (typeof DecompressionStream !== 'undefined') {
+    try { const st = new Blob([u8]).stream().pipeThrough(new DecompressionStream('gzip')); return await new Response(st).arrayBuffer(); } catch (e) { /* fall back to pako */ }
+  }
+  return pako.ungzip(u8).buffer;
+}
+// binary data ships as gzip + base64 text (the artifact host serves text, not raw binaries)
+async function getBin(url) {
+  const r = await fetch(url.replace(/\.bin$/, '.b64.txt')); if (!r.ok) throw new Error(url + ' ' + r.status);
+  const s = (await r.text()).trim(); const bin = atob(s); const u8 = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+  return gunzip(u8);
+}
+async function getJSON(url) { const r = await fetch(url); if (!r.ok) throw new Error(url + ' ' + r.status); return r.json(); }
+
+async function loadStatic() {
+  const [m, buf] = await Promise.all([getJSON('data/static.json'), getBin('data/static.bin')]);
+  meta = m; const I = m.index; const v = (k) => view(buf, I[k]);
+  roads = { pos: v('road_pos'), start: v('road_start'), lanes: v('road_lanes'), cls: v('road_cls'), name: v('road_name'), len: v('road_len'), speed: v('road_speed'), ztl: v('road_ztl') };
+  roads.n = roads.lanes.length;
+  roads.order = Array.from({ length: roads.n }, (_, i) => i).sort((a, b) => roads.cls[b] - roads.cls[a]);
+  roads.minor = roads.order.filter(i => roads.cls[i] >= 5); roads.major = roads.order.filter(i => roads.cls[i] < 5);
+  const bs = v('bld_start');
+  bld = { length: bs.length - 1, startIndices: bs.subarray(0, bs.length - 1), pos: v('bld_pos'), h: v('bld_h') };
+  const gs = v('gnd_start');
+  gnd = { length: gs.length - 1, startIndices: gs.subarray(0, gs.length - 1), pos: v('gnd_pos'), cls: v('gnd_cls') };
+  const ws = v('ww_start'); ww = { length: ws.length - 1, startIndices: ws, pos: v('ww_pos'), w: v('ww_w') };
+  const wls = v('wall_start'); wall = { length: wls.length - 1, startIndices: wls.subarray(0, wls.length - 1), pos: v('wall_pos') };
+  const rs = v('rail_start'); rail = { length: rs.length - 1, startIndices: rs, pos: v('rail_pos') };
+}
+async function loadDay(day) {
+  if (edgesData[day]) return;
+  const buf = await getBin(`data/${day}_edges.bin`); const N = roads.n, H = 24;
+  edgesData[day] = { spd: new Uint8Array(buf, 0, N * H), flow: new Uint16Array(buf, N * H, N * H), delay: new Uint16Array(buf, N * H * 3, N * H), dens: new Uint16Array(buf, N * H * 5, N * H) };
+}
+async function loadVeh(day, h) {
+  const key = `${day}_${String(h).padStart(2, '0')}`;
+  if (vehCache[key]) return vehCache[key];
+  const p = getBin(`data/veh/${key}.bin`).then(parseVeh).catch(() => null);
+  vehCache[key] = p; return p;
+}
+function parseVeh(buf) {
+  const dv = new DataView(buf); const n = dv.getUint32(4, true), nF = dv.getUint32(8, true), dt = dv.getFloat32(12, true), t0 = dv.getFloat32(16, true);
+  const tab = new Uint16Array(buf.slice(20, 20 + 4 * n)); const types = new Uint8Array(buf, 20 + 4 * n, n);
+  let off = 20 + 5 * n; off += off % 2;
+  const offs = new Uint32Array(n + 1); for (let i = 0; i < n; i++) offs[i + 1] = offs[i] + tab[2 * i + 1];
+  const P = offs[n];
+  const magic = String.fromCharCode(...new Uint8Array(buf, 0, 4));
+  let xy;
+  if (magic === 'LVF2') { // planar, delta-coded per vehicle
+    const dx = new Int16Array(buf.slice(off, off + 2 * P)), dy = new Int16Array(buf.slice(off + 2 * P, off + 4 * P));
+    xy = new Int16Array(2 * P);
+    for (let i = 0; i < n; i++) { const o = offs[i], c = tab[2 * i + 1]; let x = 0, y = 0;
+      for (let k = 0; k < c; k++) { x = k ? x + dx[o + k] : dx[o + k]; y = k ? y + dy[o + k] : dy[o + k]; xy[2 * (o + k)] = x; xy[2 * (o + k) + 1] = y; } }
+  } else xy = new Int16Array(buf.slice(off, off + 4 * P));
+  const ang = new Uint8Array(buf, off + 4 * P, P); const spd = new Uint8Array(buf, off + 5 * P, P);
+  return { n, nF, dt, t0, tab, types, offs, xy, ang, spd, dur: (nF - 1) * dt,
+    pos: new Float32Array(n * 3), ori: new Float32Array(n * 3), col: new Uint8Array(n * 4), scl: new Float32Array(n * 3) };
+}
+
+// ---------- vehicles: interpolate the recorded SUMO trajectories
+const VSCALE = [[1.8, 4.4, 1.45], [2.0, 5.6, 2.1], [2.5, 11, 3.4], [1.8, 4.3, 1.45]];
+let vehView = { length: 0 };
+function updateVehicles() {
+  if (!veh || !S.layers.veh) { vehView = { length: 0 }; return; }
+  const v = veh, t = S.t, fT = t / v.dt; let m = 0;
+  const stopCol = C.cong[4], carCol = C.car, trkCol = [214, 122, 52, 255], ztlCol = [70, 150, 230, 255];
+  for (let i = 0; i < v.n; i++) {
+    const f0 = v.tab[2 * i], n = v.tab[2 * i + 1]; const lf = fT - f0;
+    if (lf < 0 || lf > n - 1) continue;
+    const k = Math.min(n - 2, Math.floor(lf)), a = lf - k, base = v.offs[i] + k;
+    const x = lerp(v.xy[2 * base], v.xy[2 * base + 2], a) / 2, y = lerp(v.xy[2 * base + 1], v.xy[2 * base + 3], a) / 2;
+    let a0 = v.ang[base] * 360 / 256, a1 = v.ang[base + 1] * 360 / 256; let d = a1 - a0; if (d > 180) d -= 360; if (d < -180) d += 360;
+    const ang = a0 + d * a; const sp = lerp(v.spd[base], v.spd[base + 1], a);
+    v.pos[3 * m] = x; v.pos[3 * m + 1] = y; v.pos[3 * m + 2] = 0.3;
+    v.ori[3 * m] = 0; v.ori[3 * m + 1] = -ang; v.ori[3 * m + 2] = 0;
+    const ty = v.types[i]; const sc = VSCALE[ty] || VSCALE[0];
+    v.scl[3 * m] = sc[0]; v.scl[3 * m + 1] = sc[1]; v.scl[3 * m + 2] = sc[2];
+    const c = sp < 4 ? stopCol : (ty === 2 || ty === 1 ? trkCol : ty === 3 ? ztlCol : carCol);
+    v.col[4 * m] = c[0]; v.col[4 * m + 1] = c[1]; v.col[4 * m + 2] = c[2]; v.col[4 * m + 3] = 255;
+    m++;
+  }
+  vehView = { length: m, attributes: { getPosition: { value: v.pos.subarray(0, 3 * m), size: 3 }, getOrientation: { value: v.ori.subarray(0, 3 * m), size: 3 },
+    getScale: { value: v.scl.subarray(0, 3 * m), size: 3 }, getColor: { value: v.col.subarray(0, 4 * m), size: 4, normalized: true },
+    getFillColor: { value: v.col.subarray(0, 4 * m), size: 4, normalized: true } } };
+}
+function boxMesh() {
+  const P = [], N = [], U = [];
+  const f = (n, a, b, c, d) => { for (const p of [a, b, c, a, c, d]) { P.push(...p); N.push(...n); U.push(0, 0); } };
+  const x0 = -.5, x1 = .5, y0 = -.5, y1 = .5, z0 = 0, z1 = 1;
+  f([0, 0, 1], [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]); f([0, 0, -1], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0], [x1, y0, z0]);
+  f([1, 0, 0], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [x1, y0, z1]); f([-1, 0, 0], [x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0]);
+  f([0, 1, 0], [x0, y1, z0], [x0, y1, z1], [x1, y1, z1], [x1, y1, z0]); f([0, -1, 0], [x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1]);
+  return { positions: new Float32Array(P), normals: new Float32Array(N), texCoords: new Float32Array(U) };
+}
+const MESH = boxMesh();
+
+// ---------- road colouring
+function roadColor(i) {
+  const E = edgesData[S.day]; if (!E) return C.road;
+  const k = S.hour * roads.n + i; const s = E.spd[k];
+  if (s === 255) return [C.road[0], C.road[1], C.road[2], 150];
+  if (S.mode === 'speed') return ramp(speedStops(), s / 200);
+  if (S.mode === 'vol') return ramp(volStops(), E.flow[k] / Math.max(1, roads.lanes[i]));
+  return ramp(delayStops(), E.delay[k] / Math.max(0.05, roads.len[i] / 1000));
+}
+function roadWidth(i) {
+  const base = Math.max(1, roads.lanes[i]) * 3.3;
+  if (S.mode === 'vol') { const E = edgesData[S.day]; const f = E ? E.flow[S.hour * roads.n + i] : 0; return Math.max(base * 0.7, Math.sqrt(f) * 0.9); }
+  return base;
+}
+const MINPX = [2.4, 1.8, 2.0, 1.6, 1.2, 0.8, 0.6, 0.6];
+
+// ---------- scene
+const origin = [0, 0, 0];
+let deckgl, lighting;
+function groundColors() {
+  const map = { 1: C.farm, 2: C.green, 3: C.wood, 4: C.urban, 5: C.ind, 6: C.civic, 9: C.water };
+  const cols = new Uint8Array(gnd.cls.length * 4);
+  for (let i = 0; i < gnd.cls.length; i++) { const c = map[gnd.cls[i]] || C.ground; cols.set([c[0], c[1], c[2], 255], i * 4); }
+  return cols;
+}
+let gndCols = null, themeRev = 0, COORD0 = null; const DATA = {};
+function buildData() {
+  DATA.ground = { length: gnd.length, startIndices: gnd.startIndices, attributes: { getPolygon: { value: gnd.pos, size: 2 }, getFillColor: { value: gndCols, size: 4, normalized: true } } };
+  if (DATA.bld) return;
+  DATA.ww = { length: ww.length, startIndices: ww.startIndices, attributes: { getPath: { value: ww.pos, size: 2 } } };
+  DATA.rail = { length: rail.length, startIndices: rail.startIndices, attributes: { getPath: { value: rail.pos, size: 2 } } };
+  DATA.wall = { length: wall.length, startIndices: wall.startIndices, attributes: { getPolygon: { value: wall.pos, size: 2 } } };
+  DATA.bld = { length: bld.length, startIndices: bld.startIndices, attributes: { getPolygon: { value: bld.pos, size: 2 }, getElevation: { value: bld.h, size: 1 } } };
+}
+const hotCache = {};
+function hotData() { return hotCache[S.day] || (hotCache[S.day] = (summary[S.day].hotspots || []).slice(0, 12).map((h, k) => ({ ...h, rank: k + 1 }))); }
+function sevColor(vh) { return ramp([[0, C.cong[1]], [5, C.cong[2]], [15, C.cong[3]], [40, C.cong[4]], [90, C.cong[5]]], vh); }
+
+function layers() {
+  const COORD = COORD0 || (COORD0 = { coordinateSystem: D.COORDINATE_SYSTEM.METER_OFFSETS, coordinateOrigin: [meta.origin[0], meta.origin[1], 0] });
+  const L = [];
+  L.push(new D.SolidPolygonLayer({ id: 'ground', ...COORD, data: DATA.ground,
+    positionFormat: 'XY', _normalize: false, pickable: false, updateTriggers: { getFillColor: themeRev } }));
+  L.push(new D.PathLayer({ id: 'waterways', ...COORD, data: DATA.ww,
+    positionFormat: 'XY', _pathType: 'open', getWidth: (_, { index }) => ww.w[index], widthUnits: 'meters', widthMinPixels: 0.5, getColor: C.water, updateTriggers: { getColor: themeRev } }));
+  L.push(new D.PathLayer({ id: 'rail', ...COORD, data: DATA.rail,
+    positionFormat: 'XY', _pathType: 'open', getWidth: 3, widthUnits: 'meters', widthMinPixels: 1, getColor: C.rail, updateTriggers: { getColor: themeRev } }));
+  const roadProps = { ...COORD, positionFormat: 'XY', _pathType: 'open',
+    getPath: (i) => roads.pos.subarray(roads.start[i] * 2, roads.start[i + 1] * 2), getWidth: roadWidth, widthUnits: 'meters',
+    widthMaxPixels: 40, getColor: roadColor, capRounded: true, jointRounded: true, pickable: true, autoHighlight: true, highlightColor: [255, 255, 255, 90],
+    updateTriggers: { getColor: [S.day, S.hour, S.mode, themeRev, !!edgesData[S.day]], getWidth: [S.mode, S.mode === 'vol' ? S.day + S.hour : 0] } };
+  L.push(new D.PathLayer({ id: 'roads-minor', data: roads.minor, widthMinPixels: 0.7, opacity: 0.7, ...roadProps }));
+  L.push(new D.PathLayer({ id: 'roads', data: roads.major, widthMinPixels: 1.6, ...roadProps }));
+  L.push(new D.SolidPolygonLayer({ id: 'walls', ...COORD, data: DATA.wall,
+    positionFormat: 'XY', _normalize: false, extruded: true, getElevation: 12, getFillColor: C.wall, material: { ambient: .55, diffuse: .55 }, updateTriggers: { getFillColor: themeRev } }));
+  if (S.layers.bld) L.push(new D.SolidPolygonLayer({ id: 'buildings', ...COORD, data: DATA.bld,
+    positionFormat: 'XY', _normalize: false, extruded: true, getFillColor: C.bldA, material: { ambient: .45, diffuse: .65, shininess: 8, specularColor: [40, 40, 40] }, updateTriggers: { getFillColor: themeRev } }));
+  if (S.layers.veh && vehView.length) {
+    if (S.zoom >= 17) L.push(new D.SimpleMeshLayer({ id: 'veh-mesh', ...COORD, data: vehView, mesh: MESH, sizeScale: 1, material: { ambient: .6, diffuse: .6 } }));
+    else L.push(new D.ScatterplotLayer({ id: 'veh-dots', ...COORD, data: vehView, radiusUnits: 'meters', getRadius: 3.4, radiusMinPixels: S.zoom < 13 ? 1.3 : 2.0, radiusMaxPixels: 7, stroked: false }));
+  }
+  if (S.layers.hot) {
+    const hd = hotData();
+    L.push(new D.ScatterplotLayer({ id: 'hot-ring', ...COORD, data: hd, getPosition: d => [d.x, d.y, 1], getRadius: d => 20 + Math.sqrt(d.delay_h[S.hour]) * 14, radiusUnits: 'meters',
+      stroked: true, filled: true, getFillColor: d => { const c = sevColor(d.delay_h[S.hour]); return [c[0], c[1], c[2], 30]; }, getLineColor: d => { const c = sevColor(d.delay_h[S.hour]); return [c[0], c[1], c[2], 200]; },
+      lineWidthUnits: 'pixels', getLineWidth: 1.5, updateTriggers: { getRadius: [S.day, S.hour], getFillColor: [S.day, S.hour, themeRev], getLineColor: [S.day, S.hour, themeRev] } }));
+    const tall = S.zoom < 16.2; const es = Math.round(Math.max(0.15, Math.min(1.6, 2 ** (13.3 - S.zoom))) * 20) / 20;
+    if (tall) L.push(new D.ColumnLayer({ id: 'hot', ...COORD, data: hd, diskResolution: 16, radius: 14, extruded: true, pickable: true,
+      getPosition: d => [d.x, d.y], getElevation: d => 12 + d.delay_h[S.hour] * 10, elevationScale: es, getFillColor: d => { const c = sevColor(d.delay_h[S.hour]); return [c[0], c[1], c[2], S.sel === d.id ? 255 : 215]; },
+      getLineColor: [255, 255, 255, 200], material: { ambient: .7, diffuse: .4 }, updateTriggers: { getElevation: [S.day, S.hour], getFillColor: [S.day, S.hour, S.sel, themeRev] },
+      transitions: RM ? {} : { getElevation: 500 } }));
+    L.push(new D.TextLayer({ id: 'hot-rank', ...COORD, data: hd, getPosition: d => [d.x, d.y, tall ? (12 + d.delay_h[S.hour] * 10) * es + 20 : 6], getText: d => String(d.rank), getSize: 15, pickable: !tall,
+      fontFamily: 'Barlow Condensed, Arial Narrow, sans-serif', fontWeight: 700, getColor: C.label, fontSettings: { sdf: true }, outlineWidth: 4, outlineColor: [...C.halo.slice(0, 3), 230],
+      billboard: true, updateTriggers: { getPosition: [S.day, S.hour, tall, es], getColor: themeRev, outlineColor: themeRev } }));
+  }
+  if (S.layers.lbl) L.push(new D.TextLayer({ id: 'places', ...COORD, data: meta.places, getPosition: d => [d.p[0], d.p[1], 30], getText: d => d.n,
+    getSize: d => d.k === 'city' || d.k === 'town' ? 15 : 12, sizeUnits: 'pixels', fontFamily: 'Barlow Condensed, Arial Narrow, sans-serif', fontWeight: 600,
+    characterSet: 'auto', getColor: [...C.label.slice(0, 3), 210], fontSettings: { sdf: true }, outlineWidth: 4, outlineColor: [...C.halo.slice(0, 3), 220],
+    billboard: true, collisionEnabled: false, updateTriggers: { getColor: themeRev, outlineColor: themeRev } }));
+  return L;
+}
+function render() { if (deckgl) deckgl.setProps({ layers: layers() }); }
+
+// ---------- UI
+const fmt = (v, d = 0) => v.toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
+const hh = (h) => String(h).padStart(2, '0') + ':00';
+function ctxText(day, h) {
+  const k = summary[day].kpi; const peak = k.reduce((a, b) => (b.delay_vh > a.delay_vh ? b : a));
+  if (day === 'wd') {
+    if (h >= 7 && h <= 8) return 'School and work morning peak';
+    if (h >= 12 && h <= 14) return 'School exit and lunch return';
+    if (h >= 16 && h <= 18) return 'Evening commute';
+    if (h <= 5 || h >= 22) return 'Night, network nearly empty';
+    return 'Weekday off-peak';
+  }
+  if (h >= 10 && h <= 12) return 'Saturday shopping peak';
+  if (h >= 16 && h <= 19) return 'Saturday afternoon and evening';
+  if (h <= 6) return 'Night, network nearly empty';
+  return 'Saturday off-peak';
+}
+function updatePanel() {
+  const k = summary[S.day].kpi[S.hour];
+  $('clockTime').innerHTML = `${hh(S.hour)}<small>–${hh((S.hour + 1) % 24)}</small>`;
+  $('clockCtx').textContent = ctxText(S.day, S.hour);
+  $('kVeh').textContent = fmt(k.veh_in_net);
+  $('kSpd').textContent = fmt(k.avg_kmh, 1);
+  $('kDel').textContent = fmt(k.delay_vh);
+  $('kCong').textContent = fmt(k.cong_km, 1);
+  $('chart').setAttribute('aria-valuenow', S.hour);
+  $('chart').setAttribute('aria-valuetext', hh(S.hour));
+  drawChart(); drawSpots(); drawLegend();
+}
+function drawLegend() {
+  let stops, ticks;
+  if (S.mode === 'speed') { stops = speedStops(); ticks = ['stopped', '25%', '45%', '62%', '80%', 'free flow']; }
+  else if (S.mode === 'vol') { stops = volStops(); ticks = ['0', '300', '800', '1600+ veh/h/lane']; }
+  else { stops = delayStops(); ticks = ['0', '20', '80', '250', '700+ veh-min/km']; }
+  const lo = stops[0][0], hi = stops[stops.length - 1][0];
+  const g = stops.map(([v, c]) => `rgb(${c[0]},${c[1]},${c[2]}) ${((v - lo) / (hi - lo) * 100).toFixed(0)}%`).join(',');
+  $('legendBar').style.background = `linear-gradient(90deg, ${g})`;
+  $('legendTicks').innerHTML = ticks.map(t => `<span>${t}</span>`).join('');
+}
+function spark(arr, h, col) {
+  const w = 72, H = 18, mx = Math.max(1, ...arr);
+  const pts = arr.map((v, i) => `${(i / 23 * w).toFixed(1)},${(H - 1 - v / mx * (H - 3)).toFixed(1)}`).join(' ');
+  const x = (h / 23 * w).toFixed(1);
+  return `<svg class="spark" viewBox="0 0 ${w} ${H}" aria-hidden="true"><polygon points="0,${H} ${pts} ${w},${H}" fill="${col}" fill-opacity=".18"/><polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.3"/><line x1="${x}" x2="${x}" y1="0" y2="${H}" stroke="currentColor" stroke-opacity=".5" stroke-width="1"/></svg>`;
+}
+function spotName(h) { return h.label || h.streets.slice(0, 2).join(' × ') || 'Unnamed junction'; }
+function drawSpots() {
+  const hd = hotData(); const el = $('spots');
+  el.innerHTML = hd.map(h => {
+    const c = sevColor(h.peak_delay_vh); const col = `rgb(${c[0]},${c[1]},${c[2]})`; const now = h.delay_h[S.hour];
+    return `<li class="spot" role="option" tabindex="0" data-id="${h.id}" aria-selected="${S.sel === h.id}">
+      <span class="rk" style="background:${col}">${h.rank}</span>
+      <span class="nm">${spotName(h)}</span>
+      <span class="val" title="Delay in the selected hour">${fmt(now, now < 10 ? 1 : 0)} vh</span>
+      <span class="meta"><span>${({ signals: 'Signals', roundabout: 'Roundabout', priority: 'Junction' })[h.control] || h.control} · peak ${String(h.peak_hour).padStart(2, '0')}h · ${fmt(h.daily_delay_vh)} vh/day</span></span><span class="sp">${spark(h.delay_h, S.hour, col)}</span>
+      ${S.sel === h.id && h.note ? `<span class="note">${h.note}</span>` : ''}</li>`;
+  }).join('');
+  el.querySelectorAll('.spot').forEach(li => {
+    const go = () => selectSpot(li.dataset.id, true);
+    li.addEventListener('click', go); li.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+  });
+}
+function selectSpot(id, fly) {
+  S.sel = S.sel === id && !fly ? null : id;
+  const h = hotData().find(x => x.id === id);
+  if (h && fly) {
+    S.hour = h.peak_hour; onHour();
+    deckgl.setProps({ initialViewState: { longitude: h.lonlat[0], latitude: h.lonlat[1], zoom: 16.2, pitch: 58, bearing: (Math.random() * 60 - 30), transitionDuration: RM ? 0 : 1600,
+      transitionInterpolator: RM ? null : new D.FlyToInterpolator() } });
+  }
+  drawSpots(); render();
+}
+// 24-hour strip
+function drawChart() {
+  const svg = $('chart'); const r = svg.getBoundingClientRect(); const W = Math.max(200, r.width), H = Math.max(60, r.height);
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const pad = { l: 4, r: 4, t: 14, b: 16 }; const cw = (W - pad.l - pad.r) / 24; const ih = H - pad.t - pad.b;
+  const cur = summary[S.day].kpi.map(k => k.delay_vh), oth = summary[S.day === 'wd' ? 'sat' : 'wd'].kpi.map(k => k.delay_vh);
+  const mx = Math.max(...cur, ...oth) * 1.05;
+  let s = '';
+  const st = getComputedStyle(document.documentElement);
+  for (let h = 0; h < 24; h++) {
+    const v = cur[h], bh = Math.max(1.5, v / mx * ih), x = pad.l + h * cw;
+    const c = sevColor(v / 12); const fill = h === S.hour ? st.getPropertyValue('--ink') : `rgb(${c[0]},${c[1]},${c[2]})`;
+    s += `<rect x="${(x + cw * .14).toFixed(1)}" y="${(pad.t + ih - bh).toFixed(1)}" width="${(cw * .72).toFixed(1)}" height="${bh.toFixed(1)}" rx="2" fill="${fill}" fill-opacity="${h === S.hour ? 1 : .85}"/>`;
+  }
+  const line = oth.map((v, h) => `${(pad.l + h * cw + cw / 2).toFixed(1)},${(pad.t + ih - v / mx * ih).toFixed(1)}`).join(' ');
+  s += `<polyline points="${line}" fill="none" stroke="${st.getPropertyValue('--ink-3')}" stroke-width="1.2" stroke-dasharray="3 3"/>`;
+  for (let h = 0; h < 24; h += (W < 500 ? 6 : 3)) s += `<text x="${(pad.l + h * cw + cw / 2).toFixed(1)}" y="${H - 3}" text-anchor="middle">${String(h).padStart(2, '0')}</text>`;
+  const xh = pad.l + S.hour * cw + cw / 2;
+  s += `<g class="hl"><text x="${Math.min(W - 40, Math.max(40, xh)).toFixed(1)}" y="10" text-anchor="middle">${hh(S.hour)} · ${fmt(cur[S.hour])} vh</text></g>`;
+  const legLeft = xh > W / 2;
+  if (W > 560) s += `<text x="${legLeft ? 4 : W - 4}" y="10" text-anchor="${legLeft ? 'start' : 'end'}">network delay per hour · bars ${DAYS[S.day].toLowerCase()} · dashed ${DAYS[S.day === 'wd' ? 'sat' : 'wd'].toLowerCase()}</text>`;
+  svg.innerHTML = s;
+}
+function hourFromEvent(e) { const r = $('chart').getBoundingClientRect(); return Math.max(0, Math.min(23, Math.floor((e.clientX - r.left - 4) / ((r.width - 8) / 24)))); }
+
+async function onHour() {
+  updatePanel(); render();
+  const v = await loadVeh(S.day, S.hour);
+  veh = v; if (v && S.t > v.dur) S.t = 0;
+  loadVeh(S.day, (S.hour + 1) % 24); // prefetch
+}
+async function setDay(d) {
+  S.day = d; $('dayWd').setAttribute('aria-pressed', d === 'wd'); $('daySat').setAttribute('aria-pressed', d === 'sat');
+  await loadDay(d); S.sel = null; onHour();
+}
+function setMode(m) { S.mode = m; ['mSpeed', 'mVol', 'mDelay'].forEach((id, k) => $(id).setAttribute('aria-pressed', ['speed', 'vol', 'delay'][k] === m)); drawLegend(); render(); }
+
+function aboutHTML() {
+  const a = summary.about; const cal = summary.calibration || [];
+  return `<p>${a.intro}</p>
+  <p><b>Network.</b> ${a.network}</p><p><b>Demand.</b> ${a.demand}</p><p><b>Simulation.</b> ${a.sim}</p>
+  <p><b>Validation against counts</b> (weekday, both directions):</p>
+  <table><thead><tr><th>Section</th><th class="n">Observed</th><th class="n">Simulated</th></tr></thead><tbody>
+  ${cal.map(c => `<tr><td>${c.label}<br><span style="color:var(--ink-3)">${c.src}</span></td><td class="n">${fmt(c.obs)}</td><td class="n">${fmt(c.sim)}</td></tr>`).join('')}</tbody></table>
+  <p><b>Critical points.</b> ${a.hotspots}</p>
+  <p><b>Limits.</b> ${a.limits}</p>
+  <p><b>Sources.</b> ${a.sources.map(s => `<a href="${s.url}" target="_blank" rel="noopener">${s.t}</a>`).join(' · ')}</p>
+  <p style="color:var(--ink-3)">${a.credits}</p>`;
+}
+
+// ---------- animation loop
+let last = performance.now(), hourTimer = 0;
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (veh) {
+    if (!RM || S.playing) S.t += dt * S.mult;
+    if (S.t > veh.dur) {
+      S.t = 0;
+      if (S.playing) { S.hour = (S.hour + 1) % 24; onHour(); }
+    }
+  }
+  updateVehicles(); render();
+  requestAnimationFrame(frame);
+}
+
+async function main() {
+  readTokens();
+  try {
+    $('loadMsg').textContent = 'Loading map of Lucca…';
+    await loadStatic();
+    summary = await getJSON('data/summary.json');
+    $('loadMsg').textContent = 'Loading simulation…';
+    await loadDay(S.day);
+  } catch (e) { $('loadMsg').innerHTML = `<span class="err">Could not load the simulation data (${e.message}). Reload the page to try again.</span>`; return; }
+  gndCols = groundColors(); buildData();
+  $('brandsub').textContent = summary.subtitle;
+  $('aboutBody').innerHTML = aboutHTML();
+  lighting = new D.LightingEffect({ amb: new D.AmbientLight({ color: [255, 255, 255], intensity: 1.0 }),
+    sun: new D._SunLight({ timestamp: Date.UTC(2026, 9, 13, 9, 30), color: [255, 250, 240], intensity: 1.6, _shadow: false }) });
+  const narrow = window.innerWidth < 760;
+  S.zoom = QZ ? +QZ[1] : (narrow ? 12.4 : 13.25);
+  deckgl = new D.DeckGL({ container: 'scene', effects: [lighting],
+    initialViewState: QZ ? { longitude: 10.4955, latitude: 43.8396, zoom: +QZ[1], pitch: 60, bearing: -25, maxPitch: 75, minZoom: 11, maxZoom: 19 } : { longitude: narrow ? 10.507 : 10.493, latitude: narrow ? 43.838 : 43.846, zoom: narrow ? 12.4 : 13.25, pitch: 52, bearing: -18, maxPitch: 75, minZoom: 11, maxZoom: 19 },
+    controller: { inertia: true }, layers: [],
+    onViewStateChange: ({ viewState }) => { S.zoom = viewState.zoom; },
+    getTooltip: null, onHover: onHover, onClick: onClick,
+    getCursor: ({ isHovering, isDragging }) => isDragging ? 'grabbing' : (isHovering ? 'pointer' : 'grab') });
+  await onHour();
+  $('loading').classList.add('done');
+  if (STILL) { S.t = 30; updateVehicles(); render(); } else requestAnimationFrame(frame);
+  // background-load the other day
+  loadDay(S.day === 'wd' ? 'sat' : 'wd');
+  $('dayWd').setAttribute('aria-pressed', S.day === 'wd'); $('daySat').setAttribute('aria-pressed', S.day === 'sat');
+}
+function onHover(info) {
+  const tip = $('tip');
+  if (!info.object && info.index < 0) { tip.hidden = true; return; }
+  let html = '';
+  if (info.layer && (info.layer.id === 'roads' || info.layer.id === 'roads-minor')) {
+    const i = info.object; const E = edgesData[S.day]; const k = S.hour * roads.n + i; const s = E.spd[k];
+    const nm = meta.road_names[roads.name[i]] || 'Unnamed road'; const lim = roads.speed[i] * 3.6;
+    html = `<b>${nm}</b>${roads.ztl[i] ? ' <span class="chip">ZTL</span>' : ''}<div class="m">${s === 255 ? 'no traffic this hour' : `${fmt(s / 200 * lim)} km/h of ${fmt(lim)} · ${fmt(E.flow[k])} veh/h<br>${fmt(E.delay[k])} veh-min lost · ${roads.lanes[i]} lane${roads.lanes[i] > 1 ? 's' : ''}`}</div>`;
+  } else if (info.layer && (info.layer.id === 'hot' || info.layer.id === 'hot-rank')) {
+    const h = info.object; html = `<b>#${h.rank} ${spotName(h)}</b><div class="m">${fmt(h.delay_h[S.hour], 1)} veh-h lost ${hh(S.hour)}–${hh((S.hour + 1) % 24)}<br>${fmt(h.daily_delay_vh)} veh-h per day · peak ${hh(h.peak_hour)}</div>${h.note ? `<div style="margin-top:4px">${h.note}</div>` : ''}`;
+  } else { tip.hidden = true; return; }
+  tip.innerHTML = html; tip.hidden = false;
+  const x = Math.min(window.innerWidth - 270, info.x + 14), y = Math.max(8, info.y - 10);
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+function onClick(info) { if (info.layer && (info.layer.id === 'hot' || info.layer.id === 'hot-rank') && info.object) selectSpot(info.object.id, false); }
+
+// ---------- wiring
+$('dayWd').onclick = () => setDay('wd'); $('daySat').onclick = () => setDay('sat');
+$('mSpeed').onclick = () => setMode('speed'); $('mVol').onclick = () => setMode('vol'); $('mDelay').onclick = () => setMode('delay');
+const toggle = (id, key) => { $(id).onchange = (e) => { S.layers[key] = e.target.checked; render(); }; };
+toggle('tVeh', 'veh'); toggle('tBld', 'bld'); toggle('tHot', 'hot'); toggle('tLbl', 'lbl');
+$('playBtn').onclick = () => { S.playing = !S.playing; $('playIcon').innerHTML = S.playing ? '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>' : '<path d="M7 4l13 8-13 8z"/>'; $('playBtn').setAttribute('aria-label', S.playing ? 'Pause the day' : 'Play the day'); };
+document.querySelectorAll('.speed button').forEach(b => b.onclick = () => { S.mult = +b.dataset.s; document.querySelectorAll('.speed button').forEach(x => x.setAttribute('aria-pressed', x === b)); });
+let dragging = false;
+$('chart').addEventListener('pointerdown', e => { dragging = true; $('chart').setPointerCapture(e.pointerId); const h = hourFromEvent(e); if (h !== S.hour) { S.hour = h; onHour(); } });
+$('chart').addEventListener('pointermove', e => { if (!dragging) return; const h = hourFromEvent(e); if (h !== S.hour) { S.hour = h; onHour(); } });
+$('chart').addEventListener('pointerup', () => { dragging = false; });
+$('chart').addEventListener('keydown', e => { if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { S.hour = (S.hour + 1) % 24; onHour(); e.preventDefault(); } if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { S.hour = (S.hour + 23) % 24; onHour(); e.preventDefault(); } });
+$('sheetBtn').onclick = () => $('panel').classList.toggle('collapsed');
+if (window.innerWidth < 760) $('panel').classList.add('collapsed');
+window.addEventListener('resize', () => summary && drawChart());
+const mq = window.matchMedia('(prefers-color-scheme: dark)');
+const retheme = () => { readTokens(); if (gnd) { gndCols = groundColors(); buildData(); themeRev++; if (summary) updatePanel(); render(); } };
+mq.addEventListener && mq.addEventListener('change', retheme);
+new MutationObserver(retheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+(document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(main);
+})();
+</script>
+</body>
+</html>

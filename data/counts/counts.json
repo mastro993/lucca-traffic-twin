@@ -1,0 +1,24 @@
+{
+  "note": "Observed traffic counts used to calibrate and check the model. Daily values are both directions, vehicles/day.",
+  "regione_toscana_stations": {
+    "source": "Regione Toscana, Sistema di monitoraggio traffico (dati.toscana.it), CC BY-SA",
+    "SR439_P058_km21.35_Lucca": {"lonlat": [10.4387, 43.8568], "where": "Via Sarzanese at Ponte San Pietro",
+      "2019": {"weekday_tue_thu": 15436, "saturday": 14247, "sunday": 11071, "weekday_peak_hour": "08-09", "weekday_peak_share": 0.082, "saturday_peak_hour": "12-13"},
+      "2021": {"weekday_tue_thu": 13655, "saturday": 12195, "sunday": 8725, "weekday_peak_share": 0.095}},
+    "SR439_P066_km41.25_Capannori": {"2021": {"weekday_tue_thu": 8026, "saturday": 6841, "sunday": 5019, "weekday_peak_share": 0.112}},
+    "SR12_P112_km18_Lucca": {"lonlat": [10.4392, 43.8371], "2022": {"weekday": 3600}, "2023": {"weekday": 3770}, "note": "2024-2025 files contain no valid days"}
+  },
+  "nepa_anas_2017": {
+    "source": "NEPA Servizi d'Ingegneria, technical report for the Viabilità Est di Lucca (2018), https://va.mite.gov.it/File/Documento/341806",
+    "Viale Europa (SP29)": 21062, "Via del Brennero (SS12)": 19068, "Viale Pesciatina (SR435)": 15272, "Via Lucchese-Romana (SP61)": 24140
+  },
+  "university_of_pisa_2005": {
+    "source": "Pratelli et al., Porta Sant'Anna study, https://docenti.ing.unipi.it/~dic/ingegneria_civile/bacheca/doc_pubblici/atti_lucca_21_2210208/10_pratelli_etc.pdf",
+    "Viale Carducci approach, AM peak": "1660 pcu/h (26 Jan 2005, 07:00-09:50)", "Porta Sant'Anna approach, AM peak": "442 pcu/h"
+  },
+  "comune_di_lucca_pums_2024": {
+    "source": "https://comune.lucca.it/app/uploads/2025/02/Documento-di-Monitoraggio2024.pdf",
+    "historic_centre_transits_weekday_2019": 5000
+  },
+  "population_istat_2025": {"Lucca": 89002, "Capannori": 46644, "Porcari": 8845, "used_in_study_area": 115000}
+}

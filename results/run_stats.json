@@ -1,0 +1,16 @@
+{
+ "wd_trips": 339525,
+ "wd_inserted": 339512,
+ "wd_teleports": 5751,
+ "wd_teleports_jam": 1019,
+ "wd_mean_duration": 841.02,
+ "wd_mean_routeLength": 9570.8,
+ "wd_mean_timeLoss": 270.2,
+ "sat_trips": 299048,
+ "sat_inserted": 299048,
+ "sat_teleports": 4026,
+ "sat_teleports_jam": 602,
+ "sat_mean_duration": 732.33,
+ "sat_mean_routeLength": 9476.11,
+ "sat_mean_timeLoss": 171.48
+}

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Full pipeline, from raw data to the web viewer. Steps 1-2 need internet access; the downloaded data is already in data/osm.
+# A full 24 h run (step 7) takes about 70-90 minutes per day type on 2 CPU cores.
+set -euo pipefail
+cd "$(dirname "$0")"
+S=scripts
+[ "${DOWNLOAD:-0}" = "1" ] && python3 $S/01_download_osm.py && python3 $S/02_download_tiles.py
+python3 $S/03_build_network.py              # OSM -> network/lucca.net.xml.gz (+ build/omt_geo.pkl)
+python3 $S/04_build_zones.py                # zones, gateways, travel-time matrix -> build/zones.pkl
+python3 $S/05_generate_demand.py weekday    # -> demand/weekday.trips.xml.gz
+python3 $S/05_generate_demand.py saturday   # -> demand/saturday.trips.xml.gz
+python3 $S/06_export_static.py              # scene geometry for the viewer
+if [ "${SIMULATE:-1}" = "1" ]; then
+  python3 $S/07_run_simulation.py weekday & python3 $S/07_run_simulation.py saturday & wait
+fi
+python3 $S/08_export_results.py weekday
+python3 $S/08_export_results.py saturday
+python3 $S/09_check_counts.py weekday
+python3 $S/10_build_summary.py
+python3 $S/11_pack_web.py
+echo "Done. Serve the viewer with: python3 -m http.server -d docs 8000"
