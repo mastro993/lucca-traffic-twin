@@ -1,4 +1,4 @@
-"""Pack the viewer's binary data as gzip + base64 text files in docs/data (the claude.ai artifact host serves text,
+"""Pack the viewer's binary data as gzip + base64 text files in public/data (the claude.ai artifact host serves text,
 not raw binaries; GitHub Pages serves both, so the same viewer works on either).
 usage: python3 scripts/11_pack_web.py"""
 import gzip, base64
