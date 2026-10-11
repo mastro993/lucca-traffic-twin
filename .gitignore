@@ -8,5 +8,5 @@ results/*/edgedata_h.add.xml
 results/*/progress.log
 results/freeflow_*/
 results/_*/
-web/node_modules/
-web/dist/
+node_modules/
+dist/

@@ -1,6 +1,6 @@
 """Export static 3D scene geometry (roads, buildings, land cover, water, walls, rail, place labels) for the viewer.
 All coordinates are local metres relative to ORIGIN (Piazza San Michele) in the SUMO/UTM frame.
-Output: web/public/data/static.json + build/web/static.bin (packed later by 11_pack_web.py), build/edge_ids.json.
+Output: public/data/static.json + build/web/static.bin (packed later by 11_pack_web.py), build/edge_ids.json.
 usage: python3 scripts/06_export_static.py"""
 import sys, json, pickle, struct, collections, math
 import numpy as np, sumolib

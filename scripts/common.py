@@ -8,7 +8,7 @@ OSM = DATA / 'osm'
 NETDIR = ROOT / 'network'
 DEMAND = ROOT / 'demand'
 RESULTS = ROOT / 'results'
-WEBDATA = ROOT / 'web' / 'public' / 'data'   # data the viewer fetches at runtime
+WEBDATA = ROOT / 'public' / 'data'   # data the viewer fetches at runtime
 BUILD = ROOT / 'build'            # intermediate files, git-ignored
 BUILD.mkdir(exist_ok=True)
 
