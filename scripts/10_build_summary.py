@@ -1,4 +1,4 @@
-"""Assemble docs/data/summary.json for the viewer: hourly KPIs, labelled critical points with notes,
+"""Assemble web/public/data/summary.json for the viewer: hourly KPIs, labelled critical points with notes,
 calibration table, run statistics and the method / data / limits text.
 usage: python3 scripts/10_build_summary.py"""
 import json, math, re

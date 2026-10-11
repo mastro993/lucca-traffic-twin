@@ -18,4 +18,4 @@ python3 $S/08_export_results.py saturday
 python3 $S/09_check_counts.py weekday
 python3 $S/10_build_summary.py
 python3 $S/11_pack_web.py
-echo "Done. Serve the viewer with: python3 -m http.server -d docs 8000"
+echo "Done. Run the viewer with: cd web && pnpm install && pnpm dev"

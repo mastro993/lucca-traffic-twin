@@ -147,7 +147,9 @@ results/
   *_results.json              hourly KPIs and ranked critical points
   calibration.json, run_stats.json
 scripts/                      the pipeline (01–11), shared helpers and diagnostics
-docs/                         the web viewer (GitHub Pages): index.html + packed data
+web/                          the web viewer (Vite + React + TanStack Router/Query, deployed to GitHub Pages)
+  public/data/                packed viewer data written by steps 6, 10 and 11
+docs/assets/                  README screenshots
 run_pipeline.sh               runs everything end to end
 ```
 
@@ -158,7 +160,7 @@ pip install -r requirements.txt            # includes the SUMO binaries (eclipse
 SIMULATE=0 ./run_pipeline.sh               # rebuild network, demand, viewer data from the committed inputs (~5 min)
 ./run_pipeline.sh                          # ... and re-run both 24 h simulations (~70-90 min each, 2 cores)
 DOWNLOAD=1 ./run_pipeline.sh               # also re-download OSM and building tiles first
-python3 -m http.server -d docs 8000        # open http://localhost:8000
+cd web && pnpm install && pnpm dev         # open http://localhost:5173/lucca-traffic-twin/
 ```
 
 The pipeline is deterministic. With fixed random seeds, the committed network and trip files are reproduced exactly from `data/osm/`.
@@ -174,8 +176,8 @@ The pipeline is deterministic. With fixed random seeds, the committed network an
 | 7 | `07_run_simulation.py <day> [trips]` | `results/<day>/`: edge data, statistics, tripinfo, vehroutes |
 | 8 | `08_export_results.py <day>` | per-edge hourly metrics, KPIs, critical points, trip replay |
 | 9 | `09_check_counts.py` | `results/calibration.json` |
-| 10 | `10_build_summary.py` | `docs/data/summary.json` |
-| 11 | `11_pack_web.py` | `docs/data/*.b64.txt` |
+| 10 | `10_build_summary.py` | `web/public/data/summary.json` |
+| 11 | `11_pack_web.py` | `web/public/data/*.b64.txt` |
 
 **Test a scenario** without touching the baseline. Edit the network (add a netconvert patch) or the demand, then run:
 
@@ -185,8 +187,27 @@ RUN_NAME=carducci_signals python3 scripts/07_run_simulation.py weekday demand/my
 
 Before a full run, use `scripts/tools/route_volumes.py weekday` for a 3-minute free-flow check against the counts.
 
+### Viewer
+The viewer in `web/` is a [Vite](https://vite.dev) + React + TypeScript app (pnpm), rendering with [deck.gl](https://deck.gl) 8.9.
+[TanStack Router](https://tanstack.com/router) parses the deep links and loads the data before the first frame,
+[TanStack Query](https://tanstack.com/query) caches the data files, and [TanStack Store](https://tanstack.com/store) shares the UI state
+between the panels and the render loop.
+
+- `src/lib/engine.ts`: the deck.gl scene and its animation loop (clock, vehicle replay, follow camera, picking).
+- `src/lib/layers.ts`: the deck.gl layers for each frame.
+- `src/lib/data.ts`, `src/lib/trips.ts`: data loading and decoding, trip replay.
+- `src/components/`: the control panel, the 24-hour strip and the overlays.
+
+```bash
+cd web
+pnpm dev        # dev server
+pnpm test       # unit tests (Vitest)
+pnpm build      # type-check and build to web/dist
+```
+
+Every push to `main` that touches `web/` builds the site and deploys it to GitHub Pages (`.github/workflows/pages.yml`).
+
 ### Viewer data format
-The viewer is one HTML file using [deck.gl](https://deck.gl) 8.9, with no build step.
 
 **Binary files.** They are stored as gzip + base64 text so the same page also works on hosts that only serve text:
 - `static`: typed arrays for buildings, ground, roads and walls, indexed in `static.json`.
