@@ -85,8 +85,8 @@ out['about'] = {
               'Every vehicle is simulated individually. The moving vehicles replay every simulated trip from departure to arrival, along the route and at the '
               'times SUMO recorded for each road; road colours blend the hourly averages as the clock runs. It is a model calibrated to published counts, '
               'not a live traffic feed.'),
-    'network': ('OpenStreetMap road graph converted with SUMO netconvert: about 1,700 km of road, 10,332 directed links, signalised and priority junctions, '
-                'roundabouts, OSM turn restrictions and lane counts. Inside the Walls the ZTL is closed to general traffic and open only to permit holders, '
+    'network': ('OpenStreetMap road graph converted with SUMO netconvert: about 1,700 km of road, 10,332 directed links, 22 signalised junctions and crossings on fixed-time plans, '
+                'priority junctions, roundabouts, OSM turn restrictions and lane counts. Inside the Walls the ZTL is closed to general traffic and open only to permit holders, '
                 'taxis, buses and deliveries. Speed limits are 50 km/h in built-up areas, 70–90 km/h outside, and 130 km/h on the A11.'),
     'demand': ('Tour-based synthetic demand for about 115,000 residents in the study area (ISTAT 1 Jan 2025: Lucca 89,002; part of Capannori, 46,644; part of Porcari, 8,845). '
                'Homes and destinations come from 50,000 building volumes and land use. Trip timing follows Italian patterns: school runs at 7:30–8:15, '
@@ -99,7 +99,7 @@ out['about'] = {
     'hotspots': ('Junctions are grouped into clusters: roundabouts, and nodes linked by edges shorter than 45 m. Each cluster is scored by the vehicle-hours lost on its approach links, '
                  'measured as SUMO time loss against free-flow speed. Insertion queues on the boundary roads are excluded. The ranking uses daily totals; the 3D columns show the selected hour.'),
     'limits': ('Counts are sparse and dated (2017–2021). The model is about 10–15% high on SR439 and SS12 and 25–35% low on the eastern Pesciatina and Viale Europa corridors. '
-               'Signal plans are not public, so SUMO-generated actuated plans are used. About 1% of vehicles get teleported out of local deadlocks. One junction at the Lucca Ovest toll is left out of the ranking because its delay comes from lane-change blocking on very short links, a known SUMO artefact. Parking search, buses, bicycles, roadworks, incidents and events '
+               'Signal plans are not public, so every signal runs a fixed-time plan with Italian standard timings: a 70 s cycle, 4 s amber, 2 s all-red, no coordination. About 1% of vehicles get teleported out of local deadlocks. One junction at the Lucca Ovest toll is left out of the ranking because its delay comes from lane-change blocking on very short links, a known SUMO artefact. Parking search, buses, bicycles, roadworks, incidents and events '
                '(such as Lucca Comics & Games) are not modelled. Treat absolute delays as indicative and the ranking of critical points as the main result.'),
     'sources': [
         {'t': 'OpenStreetMap (ODbL)', 'url': 'https://www.openstreetmap.org/copyright'},

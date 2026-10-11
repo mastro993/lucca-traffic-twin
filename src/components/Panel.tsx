@@ -9,7 +9,7 @@ import { Spots } from './Spots'
 
 const DAY_BUTTONS: [Day, string][] = [['wd', 'Weekday'], ['sat', 'Saturday']]
 const MODE_BUTTONS: [Mode, string][] = [['speed', 'Speed'], ['vol', 'Volume'], ['delay', 'Delay']]
-const LAYER_TOGGLES: [LayerKey, string][] = [['veh', 'Vehicles'], ['bld', 'Buildings'], ['hot', 'Critical points'], ['lbl', 'Place names']]
+const LAYER_TOGGLES: [LayerKey, string][] = [['veh', 'Vehicles'], ['tls', 'Traffic lights'], ['bld', 'Buildings'], ['hot', 'Critical points'], ['lbl', 'Place names']]
 
 export function Panel({ engine }: { engine: Engine }) {
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 760)

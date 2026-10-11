@@ -1,16 +1,16 @@
 {
  "wd_trips": 339525,
  "wd_inserted": 339512,
- "wd_teleports": 5751,
- "wd_teleports_jam": 1019,
- "wd_mean_duration": 841.02,
- "wd_mean_routeLength": 9570.8,
- "wd_mean_timeLoss": 270.2,
+ "wd_teleports": 4596,
+ "wd_teleports_jam": 642,
+ "wd_mean_duration": 803.33,
+ "wd_mean_routeLength": 9484.1,
+ "wd_mean_timeLoss": 238.67,
  "sat_trips": 299048,
  "sat_inserted": 299048,
- "sat_teleports": 4026,
- "sat_teleports_jam": 602,
- "sat_mean_duration": 732.33,
- "sat_mean_routeLength": 9476.11,
- "sat_mean_timeLoss": 171.48
+ "sat_teleports": 3419,
+ "sat_teleports_jam": 407,
+ "sat_mean_duration": 723.18,
+ "sat_mean_routeLength": 9457.29,
+ "sat_mean_timeLoss": 164.01
 }
