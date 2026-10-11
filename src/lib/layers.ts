@@ -6,6 +6,7 @@ import { SimpleMeshLayer } from '@deck.gl/mesh-layers/typed'
 import { blendOf, C, delayStops, lerp, mix, ramp, sevColor, speedStops, volStops, type RGBA } from './color'
 import type { Edges, Hotspot, Scene } from './data'
 import type { Engine } from './engine'
+import type { Head } from './signals'
 
 function boxMesh() {
   const P: number[] = [], N: number[] = [], U: number[] = []
@@ -17,6 +18,28 @@ function boxMesh() {
   return { positions: new Float32Array(P), normals: new Float32Array(N), texCoords: new Float32Array(U) }
 }
 const MESH = boxMesh()
+
+// traffic lights, in metres: a pole at the right kerb of each approach, an arm over its lanes, a head over every lane
+// with red, amber and green lamps facing the oncoming traffic. Heads are drawn at twice their real size to stay legible.
+type Box = { x: number; y: number; z: number; a: number; s: [number, number, number] }
+type Lamp = Box & { h: number; c: number; glow: [number, number, number] }   // glow: centre of the halo just in front of the lamp
+const POLE_H = 7.2, ARM_Z = 6.9, HEAD_Z = 4.5, LAMP_Z = [6.05, 5.35, 4.65]
+const LAMP: [lit: RGBA, dark: RGBA][] = [[[255, 45, 35, 255], [70, 24, 22, 255]], [[255, 176, 0, 255], [72, 56, 18, 255]], [[40, 225, 95, 255], [20, 62, 34, 255]]]
+function signalParts({ tls }: Scene['meta']) {
+  const dir = (a: number) => [Math.sin(a * Math.PI / 180), Math.cos(a * Math.PI / 180)]
+  const frame: Box[] = []
+  for (const { p, a, r } of tls.poles) {
+    const [dx, dy] = dir(a)   // the arm runs to the left of the heading: (-dy, dx)
+    frame.push({ x: p[0], y: p[1], z: 0, a, s: [0.3, 0.3, POLE_H] })
+    if (r > 0.3) frame.push({ x: p[0] - dy * r / 2, y: p[1] + dx * r / 2, z: ARM_Z, a, s: [r + 0.3, 0.22, 0.22] })
+  }
+  const lamps: Lamp[] = []
+  tls.heads.forEach(({ p, a }, h) => {
+    const [dx, dy] = dir(a)
+    for (let c = 0; c < 3; c++) lamps.push({ x: p[0] - dx * 0.34, y: p[1] - dy * 0.34, z: LAMP_Z[c], a, s: [0.6, 0.1, 0.6], h, c, glow: [p[0] - dx * 0.5, p[1] - dy * 0.5, LAMP_Z[c] + 0.3] })
+  })
+  return { frame, lamps }
+}
 
 function groundColors({ gnd }: Scene) {
   const map: Record<number, RGBA> = { 1: C.farm, 2: C.green, 3: C.wood, 4: C.urban, 5: C.ind, 6: C.civic, 9: C.water }
@@ -31,7 +54,7 @@ export const groundData = (s: Scene) => ({ length: s.gnd.length, startIndices: s
 export function sceneData(s: Scene) {
   const { ww, rail, wall, bld } = s
   return {
-    ground: groundData(s),
+    ground: groundData(s), signals: signalParts(s.meta),
     ww: { length: ww.length, startIndices: ww.startIndices, attributes: { getPath: { value: ww.pos, size: 2 } } },
     rail: { length: rail.length, startIndices: rail.startIndices, attributes: { getPath: { value: rail.pos, size: 2 } } },
     wall: { length: wall.length, startIndices: wall.startIndices, attributes: { getPolygon: { value: wall.pos, size: 2 } } },
@@ -72,6 +95,23 @@ export function buildLayers(g: Engine) {
     material: { ambient: .55, diffuse: .55 }, updateTriggers: { getFillColor: rev } }))
   if (st.layers.bld) L.push(new SolidPolygonLayer({ id: 'buildings', ...COORD, data: g.data.bld as never, positionFormat: 'XY', _normalize: false, extruded: true, getFillColor: C.bldA,
     material: { ambient: .45, diffuse: .65, shininess: 8, specularColor: [40, 40, 40] }, updateTriggers: { getFillColor: rev } }))
+  if (st.layers.tls) {
+    const tls = meta.tls, sig = g.sig, key = g.sigKey, lit = (h: number) => LAMP[sig[h]][0]
+    if (g.zoom >= 16) {
+      const box = { ...COORD, mesh: MESH as never, sizeScale: 1, getOrientation: (d: Box) => [0, -d.a, 0] as [number, number, number], getScale: (d: Box) => d.s }
+      L.push(new SimpleMeshLayer<Box>({ id: 'tls-frame', ...box, data: g.data.signals.frame, getPosition: d => [d.x, d.y, d.z], getColor: [58, 62, 66, 255],
+        material: { ambient: .5, diffuse: .6 } }))
+      L.push(new SimpleMeshLayer<Head>({ id: 'tls-heads', ...COORD, mesh: MESH as never, sizeScale: 1, data: tls.heads, pickable: true,
+        getPosition: d => [d.p[0], d.p[1], HEAD_Z], getOrientation: d => [0, -d.a, 0], getScale: [0.84, 0.6, 2.4], getColor: [32, 34, 36, 255], material: { ambient: .5, diffuse: .6 } }))
+      L.push(new SimpleMeshLayer<Lamp>({ id: 'tls-lamps', ...box, data: g.data.signals.lamps, getPosition: d => [d.x, d.y, d.z],
+        getColor: d => LAMP[d.c][sig[d.h] === d.c ? 0 : 1], material: { ambient: 1, diffuse: 0, shininess: 0 }, updateTriggers: { getColor: key } }))
+      L.push(new ScatterplotLayer<Head>({ id: 'tls-glow', ...COORD, data: tls.heads, billboard: true, radiusUnits: 'meters', getRadius: 0.8, stroked: false,
+        getPosition: (_, { index }) => g.data.signals.lamps[index * 3 + sig[index]].glow, getFillColor: (_, { index }) => [...lit(index).slice(0, 3), 100] as RGBA,
+        updateTriggers: { getPosition: key, getFillColor: key } }))
+    } else L.push(new ScatterplotLayer<Head>({ id: 'tls-dots', ...COORD, data: tls.heads, getPosition: d => [d.p[0], d.p[1], 1.5], radiusUnits: 'meters', getRadius: 2,
+      radiusMinPixels: 2.5, radiusMaxPixels: 6, stroked: true, lineWidthUnits: 'pixels', getLineWidth: 1, getLineColor: [20, 20, 20, 200],
+      getFillColor: (_, { index }) => lit(index), pickable: true, updateTriggers: { getFillColor: key } }))
+  }
   const f = g.follow
   if (f?.paths) for (const halo of [true, false]) L.push(new PathLayer<{ p: Float32Array; done: boolean }>({ id: halo ? 'route-halo' : 'route', ...COORD, data: f.paths,
     positionFormat: 'XY', _pathType: 'open', getPath: d => d.p as never, getWidth: halo ? 11 : 6, widthUnits: 'meters', widthMinPixels: halo ? 6 : 3, capRounded: true, jointRounded: true,

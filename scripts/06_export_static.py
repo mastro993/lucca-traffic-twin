@@ -164,6 +164,32 @@ B.add('road_pos', np.array(epos, np.float32)); B.add('road_start', np.array(est,
 B.add('road_lanes', np.array(elanes, np.uint8)); B.add('road_cls', np.array(ecls, np.uint8)); B.add('road_name', np.array(ename, np.uint16))
 B.add('road_len', np.array(elen, np.float32)); B.add('road_speed', np.array(espeed, np.float32)); B.add('road_ztl', np.array(eztl, np.uint8))
 meta['road_names'] = names; meta['roads'] = len(edges)
+
+# ---------------- traffic signals: each fixed-time program, one head over every controlled lane at its stop line, and
+# one pole per approach at the right kerb with an arm reaching over its lanes. Headings are degrees clockwise from north.
+tnet = sumolib.net.readNet(str(NET), withPrograms=True)
+prog, heads, poles = [], [], []
+for k, tl in enumerate(tnet.getTrafficLights()):
+    p = next(iter(tl.getPrograms().values()))
+    prog.append({'o': int(float(p._offset)), 'p': [[int(ph.duration), ph.state] for ph in p.getPhases()]})
+    links = collections.defaultdict(list)
+    for lane, _, li in tl.getConnections(): links[lane].append(li)
+    approaches = collections.defaultdict(list)
+    for lane in links: approaches[lane.getEdge()].append(lane)
+    for lanes in approaches.values():
+        lanes.sort(key=lambda l: l.getIndex())   # index 0 = rightmost lane
+        for lane in lanes:
+            (x0, y0), (x1, y1) = lane.getShape()[-2:]
+            ang = math.degrees(math.atan2(x1 - x0, y1 - y0))
+            heads.append({'t': k, 'l': sorted(links[lane]), 'p': [round(x1 - X0, 2), round(y1 - Y0, 2)], 'a': round(ang, 1)})
+        right, left = heads[-len(lanes)], heads[-1]
+        a = math.radians(right['a']); rx, ry = math.cos(a), -math.sin(a)   # unit vector to the right of the heading
+        off = lanes[0].getWidth() / 2 + 0.8
+        px, py = right['p'][0] + rx * off, right['p'][1] + ry * off
+        reach = math.hypot(left['p'][0] - px, left['p'][1] - py)
+        poles.append({'p': [round(px, 2), round(py, 2)], 'a': right['a'], 'r': round(reach, 2)})
+meta['tls'] = {'prog': prog, 'heads': heads, 'poles': poles}
+print('traffic signals', len(prog), 'heads', len(heads), 'poles', len(poles))
 idx = B.write(WEBRAW / 'static.bin'); meta['index'] = idx
 json.dump(meta, open(WEBDATA / 'static.json', 'w'), separators=(',', ':'), ensure_ascii=False)
 json.dump(edge_ids, open(EDGE_IDS, 'w'))

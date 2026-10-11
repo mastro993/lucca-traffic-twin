@@ -24,6 +24,7 @@ individually.
 | **Clock** | The simulation runs as a continuous 24-hour clock at 1×, 10×, 60× or 360× real time. Traffic builds up and fades minute by minute; nothing restarts when the hour changes. At midnight the clock wraps to the start of the same simulated day, which begins with an empty network. |
 | **Roads** | Coloured by speed (simulated speed ÷ speed limit), volume (vehicles/h per lane) or delay (vehicle-minutes lost per km). The hourly averages are blended as the clock moves, so colours change gradually. |
 | **Vehicles** | Every simulated trip, replayed from departure to arrival along the route SUMO chose, at the times each vehicle entered and left every road. Dark (light theme) or white (dark theme) = cars, orange = vans and lorries, blue = ZTL permit holders, red = crawling (under 5 km/h). **Click a vehicle to follow it**: the camera tracks it, its route is drawn, and a card shows departure, arrival, distance and speed. |
+| **Traffic lights** | The 22 signals in the network, running the fixed-time plans SUMO simulated. Zoomed in, each approach has a pole with an arm over its lanes and a head per lane whose red, amber or green lamp is lit (heads are drawn at twice their real size); zoomed out, each head is a coloured dot. Hover a light for its state, the seconds until it changes and the cycle length. |
 | **Critical points** | The 12 junction clusters with the most daily delay. Column height = delay at the current time; click one to fly to it at its peak hour. |
 | **24-hour strip** | Network-wide delay per hour (bars = selected day, dashed = the other day) with the clock's playhead. Drag to scrub through the day; **Play** runs the clock. |
 | **Panel** | Vehicles on the road and their average speed right now (counted from the replay), delay and km of congested road (blended hourly figures), plus the method, the calibration table and the sources. |
@@ -39,26 +40,26 @@ Deep links: `?h=8` opens 08:00 (`?h=8.5` opens 08:30), `?d=sat` opens Saturday, 
 ## Key findings (baseline)
 
 **Weekday.**
-- The network peaks at **08:00–10:00**: about 3,900 vehicle-hours are lost per hour, there are about 9,000 vehicles on the road at once, the average speed is 30 km/h, and about 110 km of road run below half the speed limit.
-- The evening peak (17:00–19:00) is milder, at about 2,500 vehicle-hours per hour.
-- Over the whole day: 22,000 vehicle-hours lost and 3.0 million vehicle-km.
+- The network peaks at **08:00–10:00**: about 3,200 vehicle-hours are lost per hour, up to about 8,600 vehicles are on the road at once, the average speed is 31–32 km/h, and up to about 105 km of road run below half the speed limit.
+- The evening peak (17:00–19:00) is milder, at about 2,000 vehicle-hours per hour.
+- Over the whole day: 19,400 vehicle-hours lost and 3.0 million vehicle-km.
 
 | # | Critical point | Control | Peak | Delay (veh-h/day) |
 |---|---|---|---|---|
-| 1 | Viale Carducci / Viale Europa roundabout | roundabout | 17h | 487 |
-| 2 | A11 at the Lucca Est exit | motorway diverge | 09h | 377 |
-| 3 | Viale Nieri / Via delle Tagliate (Porta Sant'Anna) | priority | 18h | 344 |
-| 4 | Porta Sant'Anna roundabout (Luporini / Papi / Carducci) | roundabout | 18h | 255 |
-| 5 | Viale Europa south (San Concordio) | priority | 08h | 252 |
-| 6 | Monte San Quirico bridge, south end (Via di Sant'Alessio) | priority | 09h | 239 |
-| 7 | Via delle Tagliate | priority | 17h | 231 |
-| 8 | Viale San Concordio roundabout | roundabout | 18h | 230 |
-| 9 | Viale Luporini / Via San Donato roundabout | roundabout | 17h | 223 |
-| 10 | Viale Europa / Via Teresa Bandettini | roundabout | 17h | 218 |
+| 1 | Viale Carducci / Viale Europa roundabout | roundabout | 18h | 439 |
+| 2 | Viale Nieri / Via delle Tagliate (Porta Sant'Anna) | priority | 19h | 316 |
+| 3 | A11 at the Lucca Est exit | motorway diverge | 09h | 286 |
+| 4 | Porta Sant'Anna roundabout (Luporini / Papi / Carducci) | roundabout | 08h | 249 |
+| 5 | Viale Europa south (San Concordio) | priority | 08h | 244 |
+| 6 | Via delle Tagliate | priority | 18h | 210 |
+| 7 | Viale Giacomo Puccini / Via Alfredo Catalani | signals | 08h | 205 |
+| 8 | Monte San Quirico bridgehead (north) | priority | 09h | 202 |
+| 9 | Viale Europa / Via Teresa Bandettini | roundabout | 08h | 198 |
+| 10 | Via Carlo Angeloni / Via Castruccio Buonamici | priority | 18h | 190 |
 
-Also high on the list: the north end of the Monte San Quirico bridge, Ponte a Moriano (SS12 at Galleria Colletto), and Via Sarzanese at Ponte San Pietro.
+Also high on the list: the A11 approaching the Capannori exit and the Viale Luporini / Via San Donato roundabout.
 
-**Saturday.** The peak is at **11:00–12:00** (about 2,000 vehicle-hours per hour). Delay concentrates on the west and south-west of the ring road around the Walls (the Viali), driven by traffic to the car parks: Carducci / Europa roundabout (392 veh-h/day), Porta Sant'Anna side streets (307), Porta Sant'Anna roundabout (222), Viale Europa / Bandettini (205), A11 Lucca Est exit (171).
+**Saturday.** The peak is at **11:00–12:00** (about 1,600 vehicle-hours per hour). Delay concentrates on the west and south-west of the ring road around the Walls (the Viali), driven by traffic to the car parks: Carducci / Europa roundabout (368 veh-h/day), Porta Sant'Anna side streets (277), Porta Sant'Anna roundabout (213), Viale Europa / Bandettini (195), the Viale Puccini / Via Catalani signals (170).
 
 **The pattern.** The bottlenecks cluster in three places:
 1. **The south-west corner of the Viali.** Here Viale Europa, carrying traffic from the A11 Lucca Est exit, meets the ring road and the big car parks (Carducci, Palatucci, Tagliate). A 2005 University of Pisa count had already found Viale Carducci to be the most saturated approach.
@@ -80,6 +81,14 @@ ISTAT population, traffic counts ──► calibration ┘                      
 - **Conversion:** SUMO `netconvert` with guessed ramps, roundabouts and signals, OSM turn restrictions and lane counts. The result has about 1,700 km of road, 10,332 directed links and 4,721 junctions.
 - **ZTL:** inside the Walls the network is closed to general traffic; only permit holders (`custom1`), taxis, buses and deliveries can enter.
 - **Speed limits:** derived from building density, as OSM rarely tags them. 50 km/h in built-up areas, 60–90 km/h outside, 30 km/h in the ZTL, 130 km/h on the A11.
+- **Traffic lights:** the 23 junction signals and 18 signalised pedestrian crossings tagged in OSM give 22 signals (netconvert joins the nodes of one junction and drops crossings it treats as plain geometry). Real signal plans are not public, so each runs a fixed-time plan with Italian standard timings:
+  - a 70 s cycle (the typical urban junction cycle), split into one green stage per pair of opposite approaches, with a short left-turn stage where netconvert adds one;
+  - 4 s amber, the usual urban value (the Ministry of Transport note 67906/2007 sets 3 s as the minimum and refers to 3, 4 and 5 s for approaches at 50, 60 and 70 km/h);
+  - 2 s all-red between stages;
+  - no coordination: each signal starts its cycle at its own fixed offset, derived from its id, so the city does not switch in step;
+  - pedestrian crossings are not joined to nearby signals, otherwise netconvert gives each movement of the group its own stage. As pedestrians are not simulated, a crossing turns red for vehicles only during its amber and all-red time.
+
+  Fixed-time plans are deterministic, so the viewer replays each light from its plan and shows exactly what the simulated vehicles obeyed.
 - **Junction fix:** right-before-left junctions are turned into priority junctions. In SUMO they otherwise block main roads, for example just after toll plazas.
 
 ### Demand
@@ -104,8 +113,8 @@ A tour-based synthetic population, `05_generate_demand.py`:
 - **Simulator:** Eclipse SUMO 1.28 microscopic, 1 s steps, Krauss car-following, LC2013 lane changing.
 - **Route choice:** dynamic. Vehicles route on current travel times when they depart and reroute every 5 minutes, with a small penalty for low-priority roads to avoid unrealistic rat-runs. This approximates a dynamic user equilibrium without iterating.
 - **Recording:** `07_run_simulation.py` writes hourly edge statistics and every vehicle's final route with the time it left each road (SUMO vehroute output with exit times), which the viewer replays.
-- **Teleports:** vehicles stuck for more than 3 minutes are teleported, standard SUMO practice. This affected 1.7% of trips on the weekday and 1.3% on Saturday.
-- **Trip averages:** 9.6 km and 14 min on a weekday (4.5 min lost); 9.5 km and 12 min on Saturday.
+- **Teleports:** vehicles stuck for more than 3 minutes are teleported, standard SUMO practice. This affected 1.4% of trips on the weekday and 1.1% on Saturday.
+- **Trip averages:** 9.5 km and 13 min on a weekday (4.0 min lost); 9.5 km and 12 min on Saturday.
 
 ### Critical points
 - **Clusters:** junctions are grouped into clusters, either roundabouts or nodes joined by links shorter than 45 m.
@@ -117,13 +126,13 @@ Weekday daily traffic, both directions:
 
 | Section | Observed | Simulated | Ratio | Source |
 |---|---:|---:|---:|---|
-| SR439 Via Sarzanese at Ponte San Pietro | 14,500 | 16,485 | 1.14 | Regione Toscana station P058, 2019/2021 |
-| SS12 Brennero, north of Lucca | 19,068 | 19,086 | 1.00 | NEPA / ANAS, 2017 |
-| SR435 Via Pesciatina at Antraccoli | 15,272 | 11,620 | 0.76 | NEPA / ANAS, 2017 |
-| Viale Europa, Capannori (busiest section) | 21,062 | 15,443 | 0.73 | NEPA / ANAS, 2017 |
-| Via Romana, east (busiest section) | 24,140 | 22,756 | 0.94 | NEPA / ANAS, 2017 |
+| SR439 Via Sarzanese at Ponte San Pietro | 14,500 | 16,453 | 1.13 | Regione Toscana station P058, 2019/2021 |
+| SS12 Brennero, north of Lucca | 19,068 | 19,150 | 1.00 | NEPA / ANAS, 2017 |
+| SR435 Via Pesciatina at Antraccoli | 15,272 | 11,918 | 0.78 | NEPA / ANAS, 2017 |
+| Viale Europa, Capannori (busiest section) | 21,062 | 15,236 | 0.72 | NEPA / ANAS, 2017 |
+| Via Romana, east (busiest section) | 24,140 | 22,174 | 0.92 | NEPA / ANAS, 2017 |
 
-- The simulated peak-hour shares are 8–10% of daily traffic; the stations measured 8.2–9.5%.
+- The simulated peak-hour shares are 7.5–10% of daily traffic; the stations measured 8.2–9.5%.
 - The eastern corridors (Capannori) are underestimated by about 25%.
 - All counts are in [`data/counts/counts.json`](data/counts/counts.json).
 
@@ -195,6 +204,7 @@ between the panels and the render loop.
 
 - `src/lib/engine.ts`: the deck.gl scene and its animation loop (clock, vehicle replay, follow camera, picking).
 - `src/lib/layers.ts`: the deck.gl layers for each frame.
+- `src/lib/signals.ts`: the traffic light state at any clock time, from the fixed-time plans.
 - `src/lib/data.ts`, `src/lib/trips.ts`: data loading and decoding, trip replay.
 - `src/components/`: the control panel, the 24-hour strip and the overlays.
 
@@ -213,6 +223,8 @@ Every push to `main` that touches the viewer builds the site and deploys it to G
 - `<day>_edges`: uint8 speed ratio, uint16 flow, delay and density per edge and hour.
 - `trips/<day>_HH`: the `LTR1` trip replay, one file per hour holding every vehicle on the road during that hour, so any clock time needs a single file. A 16-byte header (magic, vehicles, route edges, hour start), then per vehicle the uint32 departure second and the uint16 route length; per route edge a uint16 road index and the uint16 seconds since the previous exit; finally per vehicle the type and the departure and arrival positions on their edges (uint8, 0–255 of the edge length). The viewer moves each vehicle at constant speed along each road between its entry and exit times.
 
+**Traffic lights** are in `static.json` under `tls`: `prog` holds each signal's plan (offset and `[seconds, state]` phases, one SUMO state letter per controlled link), `heads` one head per controlled lane (signal index, link indices, stop-line position, heading in degrees clockwise from north) and `poles` one pole per approach (position, heading, arm reach in metres). A head shows green if any of its links has `G` or `g`, amber for `y`, red otherwise.
+
 **Coordinates** are local metres in the SUMO/UTM frame, relative to Piazza San Michele.
 
 ---
@@ -220,7 +232,7 @@ Every push to `main` that touches the viewer builds the site and deploys it to G
 ## Limits
 
 - **Sparse, dated counts.** There are five calibration sections, from 2017–2021; the eastern corridors run about 25% low. More counts (Comune / Provincia, A11 toll data) would improve the model.
-- **Signal plans** are not public. SUMO-generated actuated plans are used, and there are only 19 signalised junctions in OSM.
+- **Signal plans** are not public. Fixed-time plans with standard Italian timings are used (see [Network](#network)); real plans may be actuated, coordinated or switch to flashing amber at night. OSM tags only 23 signalised junctions in the area.
 - **Not modelled:** buses, bicycles, pedestrians, parking search, roadworks, incidents and events (Lucca Comics & Games, Summer Festival).
 - **Fixed departure times.** Without departure-time choice, peaks are probably sharper than in reality, so the 08–10 congestion is on the strong side.
 - **Model artefacts.** Some delay at the A11 boundaries comes from vehicles waiting to enter the study area, and a few short multi-lane links deadlock until teleported. Both are excluded from the KPIs and the ranking.

@@ -6,6 +6,7 @@ import { C, hourBlend, lerp, readTokens, type Blend, type Mode } from './color'
 import { edgesQuery, otherDay, type Day, type Hotspot, type Scene, type Summary } from './data'
 import { fmt, hh, hhmm, spotName } from './format'
 import { buildLayers, groundData, sceneData } from './layers'
+import { cycleOf, LIGHT_NAME, signalAt, type Head } from './signals'
 import { initialState, patch, viewer, type LayerKey, type Tip } from './store'
 import { keepTrips, locate, roadPoint, trips, VNAME, VSCALE, type Routes, type Spot, type Trips } from './trips'
 
@@ -24,6 +25,7 @@ export class Engine {
   t: number; ct = -1; B: Blend; zoom: number; vs: ViewState
   vehView: VehView = { length: 0 }; vehSet: Trips | null = null; live = { n: 0, kmh: 0 }
   follow: Follow | null = null; FP = {} as Spot
+  sig: Uint8Array; sigKey = ''   // light of every signal head now, and a string of them that changes when any light does
   private readonly LP = {} as Spot   // scratch point for placing vehicles
   private raf = 0; private last = performance.now(); private lastLive = -1e9
   private readonly rm = matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -32,7 +34,7 @@ export class Engine {
 
   constructor(parent: HTMLDivElement, readonly scene: Scene, readonly summary: Summary, private readonly qc: QueryClient, init: Init) {
     viewer.setState(() => initialState(init.day, init.t))
-    readTokens(); this.data = sceneData(scene)
+    readTokens(); this.data = sceneData(scene); this.sig = new Uint8Array(scene.meta.tls.heads.length)
     this.t = init.t; this.B = hourBlend(init.t)
     const o = scene.meta.origin; this.mvp = new WebMercatorViewport({ longitude: o[0], latitude: o[1] })
     const narrow = window.innerWidth < 760, bounds = { maxPitch: 75, minZoom: 11, maxZoom: 19 }
@@ -107,7 +109,7 @@ export class Engine {
   private tick(now: number) {
     const ct = Math.floor(this.t / 120)
     if (ct !== this.ct) { this.ct = ct; this.B = hourBlend(ct * 120 + 60) }
-    this.updateVehicles(); this.updateFollow(now)
+    this.updateVehicles(); this.updateSignals(); this.updateFollow(now)
     if (now - this.lastLive > 200) { this.lastLive = now; this.updateLive() }
     this.render()
   }
@@ -144,6 +146,12 @@ export class Engine {
     this.vehView = { length: m, attributes: { getPosition: { value: c.pos.subarray(0, 3 * m), size: 3 }, getOrientation: { value: c.ori.subarray(0, 3 * m), size: 3 },
       getScale: { value: c.scl.subarray(0, 3 * m), size: 3 }, getColor: { value: c.col.subarray(0, 4 * m), size: 4, normalized: true },
       getFillColor: { value: c.col.subarray(0, 4 * m), size: 4, normalized: true } } }
+  }
+
+  private updateSignals() {
+    const s = this.scene.meta.tls; let key = ''
+    for (let i = 0; i < s.heads.length; i++) { this.sig[i] = signalAt(s, s.heads[i], this.t).light; key += this.sig[i] }
+    this.sigKey = key
   }
 
   // ---------- follow one vehicle: a self-contained copy of its trip (it outlives hour files), its route drawn on the map
@@ -208,6 +216,10 @@ export class Engine {
     if (id.startsWith('veh') && v && info.index < v.n) {
       const p = locate(roads, v, info.index, this.t)
       return { title: VNAME[v.type[info.index]] || 'car', lines: [`${fmt(p.kmh)} km/h · ${meta.road_names[roads.name[p.e]] || 'unnamed road'}`, 'click to follow its trip'] }
+    }
+    if (id.startsWith('tls')) {
+      const h = info.object as Head, s = this.scene.meta.tls, now = signalAt(s, h, this.t)
+      return { title: 'Traffic light', lines: [`${LIGHT_NAME[now.light]} · changes in ${Math.ceil(now.left)} s`, `fixed-time plan · ${cycleOf(s.prog[h.t])} s cycle`] }
     }
     if (id === 'hot' || id === 'hot-rank') {
       const h = info.object as Hotspot

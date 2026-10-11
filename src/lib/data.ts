@@ -1,4 +1,5 @@
 import { queryOptions } from '@tanstack/react-query'
+import type { Signals } from './signals'
 
 export type Day = 'wd' | 'sat'
 export const DAYS: Record<Day, string> = { wd: 'Weekday', sat: 'Saturday' }
@@ -9,7 +10,7 @@ const T = { float32: Float32Array, uint32: Uint32Array, uint16: Uint16Array, uin
 interface IndexEntry { dtype: keyof typeof T; offset: number; length: number }
 
 export interface Place { n: string; k: string; p: [number, number] }
-export interface Meta { origin: [number, number]; index: Record<string, IndexEntry>; road_names: string[]; places: Place[] }
+export interface Meta { origin: [number, number]; index: Record<string, IndexEntry>; road_names: string[]; places: Place[]; tls: Signals }
 export interface Kpi { veh_in_net: number; avg_kmh: number; delay_vh: number; cong_km: number }
 export interface Hotspot {
   id: string; x: number; y: number; lonlat: [number, number]; streets: string[]; control: string; delay_h: number[]

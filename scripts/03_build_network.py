@@ -2,7 +2,8 @@
 set urban/rural speed limits from building density, and turn right-before-left junctions into priority junctions.
 Output: network/lucca.net.xml.gz (+ the patch files in network/patches/).
 usage: python3 scripts/03_build_network.py"""
-import json, subprocess, pickle, sys
+import json, subprocess, pickle, sys, hashlib
+import sumolib
 import numpy as np
 from shapely.geometry import MultiPoint, LineString
 from scipy.spatial import cKDTree
@@ -13,25 +14,31 @@ import tiles_to_geo
 P = NETDIR / 'patches'; P.mkdir(parents=True, exist_ok=True)
 S, W, N, E = BBOX
 KEEP = ['--output.street-names', '--output.original-names']
+# Fixed-time signal plans with Italian standard timings (real plans are not public): 4 s amber, the usual urban value
+# (MIT note 67906/2007: never under 3 s; 3/4/5 s for 50/60/70 km/h approaches), 2 s all-red clearance, 70 s cycle.
+# Fixed-time plans are deterministic, so the viewer can show each light's state from the program alone.
+TLS = ['--tls.default-type', 'static', '--tls.cycle.time', '70', '--tls.yellow.time', '4', '--tls.allred.time', '2']
 
 def nc(*args):
     print('netconvert', ' '.join(map(str, args))[:160], '...')
     subprocess.run([sumo_bin('netconvert'), *map(str, args), '--no-warnings'], check=True)
 
-# 1. OSM -> SUMO
+# 1. OSM -> SUMO. Signalised pedestrian crossings keep their own signals: joined into one, netconvert gives every
+# movement of the group its own phase (three crossings on Viale Marti got a 222 s cycle)
+nodes, ways, rels = load([OSM_ROADS])
+crossings = sorted(str(i) for i, (_, _, tags) in nodes.items() if tags.get('highway') == 'crossing' and tags.get('crossing') == 'traffic_signals')
 raw, clip = BUILD / 'lucca_raw.net.xml', BUILD / 'lucca_clip.net.xml'
 nc('--osm-files', OSM_ROADS, '-o', raw, '--type-files', f'{sumo_home()}/data/typemap/osmNetconvert.typ.xml',
    '--keep-edges.by-vclass', 'passenger',
    '--remove-edges.by-type', 'highway.track,highway.service,highway.services,highway.path,highway.bridleway,highway.unsurfaced,highway.living_street',
    '--geometry.remove', '--ramps.guess', '--junctions.join', '--junctions.join-dist', '12', '--roundabouts.guess', '--edges.join',
-   '--tls.guess-signals', '--tls.discard-simple', '--tls.join', '--tls.default-type', 'actuated', '--junctions.corner-detail', '5',
+   '--tls.guess-signals', '--tls.discard-simple', '--tls.join', '--tls.join-exclude', ','.join(crossings), *TLS, '--junctions.corner-detail', '5',
    '--osm.turn-lanes', '--no-turnarounds.except-deadend', '--keep-edges.components', '1', '--remove-edges.isolated', '--proj.utm', *KEEP)
 # 2. clip to the study area
 nc('-s', raw, '--keep-edges.in-geo-boundary', f'{W},{S},{E},{N}', '--keep-edges.components', '1', '-o', clip, *KEEP)
 
 # 3. ZTL: links inside the Walls (convex hull of the OSM wall ways) only for permit holders, taxis, buses, deliveries
 net = read_net(clip)
-nodes, ways, rels = load([OSM_ROADS])
 pts = [net.convertLonLat2XY(nodes[n][0], nodes[n][1]) for wid, (nds, tags) in ways.items()
        if tags.get('historic') == 'citywalls' or tags.get('barrier') == 'city_wall' for n in nds if n in nodes]
 hull = MultiPoint(pts).convex_hull; inner = hull.buffer(-5)
@@ -74,6 +81,16 @@ net = read_net(spdnet)
 rbl = [n.getID() for n in net.getNodes() if n.getType() in ('right_before_left', 'left_before_right')]
 with open(P / 'rbl.nod.xml', 'w') as f:
     f.write('<nodes>\n' + ''.join(f'  <node id="{i}" type="priority"/>\n' for i in rbl) + '</nodes>\n')
-nc('-s', spdnet, '-n', P / 'rbl.nod.xml', '-o', NET, *KEEP)
+# 7. uncoordinated signals: each plan starts at its own fixed offset (from a hash of its id) instead of all switching together
+tnet = sumolib.net.readNet(str(spdnet), withPrograms=True)
+with open(P / 'offsets.tll.xml', 'w') as f:
+    f.write('<tlLogics>\n')
+    for tl in tnet.getTrafficLights():
+        p = next(iter(tl.getPrograms().values())); phases = p.getPhases()
+        off = int(hashlib.md5(tl.getID().encode()).hexdigest(), 16) % sum(ph.duration for ph in phases)
+        f.write(f'  <tlLogic id="{tl.getID()}" type="static" programID="{p._id}" offset="{off}">\n'
+                + ''.join(f'    <phase duration="{ph.duration}" state="{ph.state}"/>\n' for ph in phases) + '  </tlLogic>\n')
+    f.write('</tlLogics>\n')
+nc('-s', spdnet, '-n', P / 'rbl.nod.xml', '--tllogic-files', P / 'offsets.tll.xml', '-o', NET, *KEEP)
 net = read_net(NET)
 print('final network', NET, 'edges', len(net.getEdges()), 'nodes', len(net.getNodes()), 'signals', len(net.getTrafficLights()))
