@@ -1,7 +1,7 @@
 # Python 3.10+
 eclipse-sumo==1.28.0      # SUMO binaries (sumo, netconvert, duarouter) + tools
 sumolib
-traci
+pyproj                    # sumolib's geo-projection (lon/lat <-> network metres)
 numpy
 scipy
 shapely>=2.0
