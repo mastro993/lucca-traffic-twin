@@ -1,0 +1,31 @@
+<!-- The roundabout (OSM way 1546266876) and the entry/exit flares of its four arms are removed, and the arms meet again
+     at the crossroads as mapped until 30 July 2026: Viale Europa with three lanes northbound (left | through |
+     through and right, OSM way 320013563 v8) and two southbound, two each way north of the junction (way 320013565 v6);
+     Via Teresa Bandettini with one lane each way (way 156395891 v13). The southbound stop line had three signal heads,
+     the left turn on its own (traffic study, phase diagrams), so the last metres from the north get a left-turn lane. -->
+<edges>
+  <delete id="1546266876#0"/>
+  <delete id="1546266876#1"/>
+  <delete id="1546266876#2"/>
+  <delete id="1546266876#3"/>
+  <delete id="1546266876#4"/>
+  <delete id="1546266876#5"/>
+  <delete id="1546266876#6"/>
+  <delete id="1546266876#7"/>
+  <delete id="1546263821#0"/>
+  <delete id="1546263821#1"/>
+  <delete id="1546263822#0"/>
+  <delete id="1546263822#1"/>
+  <delete id="1546263823#0"/>
+  <delete id="1546263823#1"/>
+  <delete id="1546263824#0"/>
+  <delete id="1546263824#1"/>
+  <edge id="europa_s_in" from="14063722828" to="1686445825" name="Viale Europa" type="highway.primary" priority="12" numLanes="3" speed="13.89"/>
+  <edge id="europa_s_out" from="1686445825" to="14063722828" name="Viale Europa" type="highway.primary" priority="12" numLanes="2" speed="13.89"/>
+  <edge id="europa_n_in" from="14063722827" to="1686445825" name="Viale Europa" type="highway.primary" priority="12" numLanes="3" speed="13.89"/>
+  <edge id="europa_n_out" from="1686445825" to="14063722827" name="Viale Europa" type="highway.primary" priority="12" numLanes="2" speed="13.89"/>
+  <edge id="bandettini_e_in" from="cluster_11896387865_1686445844" to="1686445825" name="Via Teresa Bandettini" type="highway.residential" priority="3" numLanes="1" speed="13.89"/>
+  <edge id="bandettini_e_out" from="1686445825" to="cluster_11896387865_1686445844" name="Via Teresa Bandettini" type="highway.residential" priority="3" numLanes="1" speed="13.89"/>
+  <edge id="bandettini_w_in" from="11897554423" to="1686445825" name="Via Teresa Bandettini" type="highway.residential" priority="3" numLanes="1" speed="13.89"/>
+  <edge id="bandettini_w_out" from="1686445825" to="11897554423" name="Via Teresa Bandettini" type="highway.residential" priority="3" numLanes="1" speed="13.89"/>
+</edges>

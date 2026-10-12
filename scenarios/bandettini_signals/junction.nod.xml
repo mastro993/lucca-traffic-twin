@@ -1,0 +1,6 @@
+<!-- Before 31 July 2026, when the roundabout opened, Viale Europa / Via Teresa Bandettini was a signalised crossroads:
+     OSM node 1686445825 (highway=traffic_signals), deleted when the roundabout was mapped (changeset 186700062).
+     Its plan is in signals.tll.xml. -->
+<nodes>
+  <node id="1686445825" x="9279.59" y="6336.86" type="traffic_light"/>
+</nodes>

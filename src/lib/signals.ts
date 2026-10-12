@@ -2,7 +2,7 @@
 // of its lane; a lane with several movements (straight and turning) shows green if any of them may go.
 export interface Program { o: number; p: [dur: number, state: string][] }
 export interface Head { t: number; l: number[]; p: [number, number]; a: number }   // a: heading, degrees clockwise from north
-export interface Pole { p: [number, number]; a: number; r: number }               // r: arm reach to the far head, metres
+export interface Pole { t: number; p: [number, number]; a: number; r: number }    // r: arm reach to the far head, metres
 export interface Signals { prog: Program[]; heads: Head[]; poles: Pole[] }
 
 export const RED = 0, AMBER = 1, GREEN = 2

@@ -1,7 +1,7 @@
 import { shallow, useSelector } from '@tanstack/react-store'
 import { useLayoutEffect, useRef, useState, type PointerEvent } from 'react'
 import { blendOf, css, hourBlend, sevColor } from '../lib/color'
-import { DAYS, otherDay } from '../lib/data'
+import { dayData, DAYS, otherDay } from '../lib/data'
 import type { Engine } from '../lib/engine'
 import { fmt, hhmm, pad2 } from '../lib/format'
 import { viewer } from '../lib/store'
@@ -23,9 +23,10 @@ export function Strip({ engine }: { engine: Engine }) {
   </div>
 }
 
-// 24-hour strip: network delay per hour (bars = this day, dashed = the other day) with the clock's playhead; drag to scrub
+// 24-hour strip: network delay per hour (bars = this day and run; dashed = the run it is compared with, or else the other
+// day) with the clock's playhead; drag to scrub
 function Chart({ engine }: { engine: Engine }) {
-  const { day, hour, t } = useSelector(viewer, s => ({ day: s.day, hour: s.hour, t: s.t, rev: s.themeRev }), { compare: shallow })
+  const { day, run, hour, t } = useSelector(viewer, s => ({ day: s.day, run: s.run, hour: s.hour, t: s.t, rev: s.themeRev }), { compare: shallow })
   const ref = useRef<SVGSVGElement>(null), dragging = useRef(false)
   const [{ W, H }, setSize] = useState({ W: 200, H: 60 })
   useLayoutEffect(() => {
@@ -36,7 +37,10 @@ function Chart({ engine }: { engine: Engine }) {
   const timeAt = (e: PointerEvent) => { const r = ref.current!.getBoundingClientRect(); return Math.max(0, Math.min(86399, Math.round((e.clientX - r.left - 4) / (r.width - 8) * 1440) * 60)) }
 
   const pad = { l: 4, r: 4, t: 14, b: 16 }, cw = (W - pad.l - pad.r) / 24, ih = H - pad.t - pad.b
-  const cur = engine.summary[day].kpi.map(k => k.delay_vh), oth = engine.summary[otherDay(day)].kpi.map(k => k.delay_vh)
+  const runs = engine.summary.runs, me = runs.find(r => r.id === run), vs = runs.find(r => r.id === me?.vs)
+  const cur = dayData(engine.summary, day, run).kpi.map(k => k.delay_vh)
+  const oth = (vs ? dayData(engine.summary, day, vs.id) : dayData(engine.summary, otherDay(day), run)).kpi.map(k => k.delay_vh)
+  const names = vs && me ? [me.label, vs.label] : [DAYS[day], DAYS[otherDay(day)]]
   const mx = Math.max(...cur, ...oth) * 1.05
   const line = oth.map((v, h) => `${(pad.l + h * cw + cw / 2).toFixed(1)},${(pad.t + ih - v / mx * ih).toFixed(1)}`).join(' ')
   const xh = pad.l + t / 3600 * cw, legLeft = xh > W / 2
@@ -60,7 +64,7 @@ function Chart({ engine }: { engine: Engine }) {
     <line x1={xh.toFixed(1)} x2={xh.toFixed(1)} y1={pad.t - 2} y2={pad.t + ih} style={{ stroke: 'var(--ink)' }} strokeWidth="1.5" />
     <g className="hl"><text x={Math.min(W - 40, Math.max(40, xh)).toFixed(1)} y="10" textAnchor="middle">{hhmm(t)} · {fmt(blendOf(cur, hourBlend(t)))} vh/h</text></g>
     {W > 560 && <text x={legLeft ? 4 : W - 4} y="10" textAnchor={legLeft ? 'start' : 'end'}>
-      network delay per hour · bars {DAYS[day].toLowerCase()} · dashed {DAYS[otherDay(day)].toLowerCase()}
+      network delay per hour · bars {names[0].toLowerCase()} · dashed {names[1].toLowerCase()}
     </text>}
   </svg>
 }

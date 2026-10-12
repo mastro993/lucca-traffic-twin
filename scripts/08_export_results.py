@@ -1,14 +1,17 @@
 """Turn SUMO edgeData into per-edge hourly metrics (for the viewer), hourly KPIs and ranked critical points,
 and the vehicle routes (vehroutes.xml.gz, when the run wrote it) into the viewer's trip replay.
-Output: build/web/<key>_edges.bin, build/web/trips/<key>_HH.bin, results/<day>_results.json
-usage: python3 scripts/08_export_results.py <weekday|saturday>"""
+With a scenario, its run in results/scenarios/<scenario>/<day>/ (as 12_scenario.py made it), for the viewer's run switch.
+Output: build/web/<key>_edges.bin, build/web/trips/<key>_HH.bin, results/<day>_results.json; key = wd, sat, wd-<scenario>, ...
+(the scenario's results.json in its run folder)
+usage: python3 scripts/08_export_results.py <weekday|saturday> [scenario]   # after 06_export_static.py, whose road list it uses"""
 import sys, json, math, collections, gzip, struct
 import numpy as np, sumolib
 from lxml import etree
-from common import NET, EDGE_IDS, ZONES, RESULTS, WEBRAW, ORIGIN, zopen, read_net
-day = sys.argv[1]; key = {'weekday': 'wd', 'saturday': 'sat'}[day]
-run = RESULTS / day
-net = read_net(NET)
+from common import NET, EDGE_IDS, ZONES, RESULTS, WEBRAW, ORIGIN, zopen, read_net, scenario_net
+day, scen = sys.argv[1], (sys.argv[2] if len(sys.argv) > 2 else None)
+key = {'weekday': 'wd', 'saturday': 'sat'}[day] + (f'-{scen}' if scen else '')
+run = RESULTS / 'scenarios' / scen / day if scen else RESULTS / day
+net = read_net(scenario_net(scen) if scen else NET)
 edge_ids = json.load(open(EDGE_IDS))
 eidx = {e: i for i, e in enumerate(edge_ids)}
 NE, NH = len(edge_ids), 24
@@ -55,7 +58,7 @@ with open(WEBRAW / f'{key}_edges.bin', 'wb') as f:
     for arr in (spd, flow, delay, dens): f.write(arr.tobytes())
 
 # ---------------- KPIs per hour
-lens = np.array([net.getEdge(e).getLength() for e in edge_ids])
+lens = np.array([net.getEdge(e).getLength() if net.hasEdge(e) else 0 for e in edge_ids])   # roads of other runs: no data
 kpi = []
 for h in range(NH):
     vh = F['sampled'][h].sum() / 3600; vkm = F['distance'][h].sum() / 1000
@@ -85,7 +88,7 @@ cl_delay = collections.defaultdict(lambda: np.zeros(NH)); cl_edges = collections
 cl_wait = collections.defaultdict(lambda: np.zeros(NH)); cl_flow = collections.defaultdict(lambda: np.zeros(NH))
 cl_minspd = collections.defaultdict(lambda: np.ones(NH))
 for i, eid in enumerate(edge_ids):
-    if eid in gw_in: continue
+    if eid in gw_in or not net.hasEdge(eid): continue
     e = net.getEdge(eid)
     c = find(e.getToNode().getID())
     # count only delay incurred on the approach (edges that end at the cluster and are not inside it)
@@ -113,7 +116,7 @@ for s in spots:
     if any(math.hypot(s['x'] - k['x'], s['y'] - k['y']) < 150 for k in kept): continue
     kept.append(s)
 top = kept[:40]
-json.dump({'kpi': kpi, 'hotspots': top}, open(RESULTS / f'{day}_results.json', 'w'), indent=1, ensure_ascii=False, default=lambda o: o.item() if hasattr(o, 'item') else str(o))
+json.dump({'kpi': kpi, 'hotspots': top}, open(run / 'results.json' if scen else RESULTS / f'{day}_results.json', 'w'), indent=1, ensure_ascii=False, default=lambda o: o.item() if hasattr(o, 'item') else str(o))
 print(key, 'daily delay veh-h', round(sum(k['delay_vh'] for k in kpi)), 'veh-km', sum(k['veh_km'] for k in kpi))
 for s in top[:15]:
     print(f"{s['daily_delay_vh']:7.1f} vh  peak {s['peak_hour']:02d}h {s['peak_delay_vh']:6.1f}  {s['control']:10s} {' / '.join(s['streets'])}  @{s['lonlat'][1]:.4f},{s['lonlat'][0]:.4f}")

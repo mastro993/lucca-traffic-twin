@@ -8,8 +8,8 @@ def pack(raw: bytes, out):
     out.write_bytes(base64.b64encode(gzip.compress(raw, 9, mtime=0)))
 
 (WEBDATA / 'trips').mkdir(parents=True, exist_ok=True)
-for name in ('static', 'wd_edges', 'sat_edges'):   # packs what was rebuilt, e.g. only the scene after step 6
-    if (WEBRAW / f'{name}.bin').exists(): pack((WEBRAW / f'{name}.bin').read_bytes(), WEBDATA / f'{name}.b64.txt')
+for f in sorted(WEBRAW.glob('*.bin')):   # packs what was rebuilt, e.g. only the scene after step 6
+    pack(f.read_bytes(), WEBDATA / (f.stem + '.b64.txt'))
 for f in sorted((WEBRAW / 'trips').glob('*.bin')):
     pack(f.read_bytes(), WEBDATA / 'trips' / (f.stem + '.b64.txt'))
 print('packed into', WEBDATA)

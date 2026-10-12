@@ -1,0 +1,291 @@
+{
+ "scenario": "bandettini_signals",
+ "day": "saturday",
+ "baseline": "scenarios/baseline/saturday_seed2",
+ "hours": [
+  0,
+  24
+ ],
+ "per_hour": {
+  "time_lost_vh": {
+   "baseline": [
+    0.0,
+    0.0,
+    0.1,
+    0.7,
+    2.3,
+    7.6,
+    40.6,
+    226.3,
+    394.6,
+    558.1,
+    1214.4,
+    1619.6,
+    1382.1,
+    877.5,
+    457.2,
+    566.3,
+    841.2,
+    1018.6,
+    1033.0,
+    566.1,
+    356.8,
+    293.4,
+    212.6,
+    141.0
+   ],
+   "scenario": [
+    0.0,
+    0.0,
+    0.1,
+    0.7,
+    2.3,
+    7.8,
+    38.6,
+    239.0,
+    407.5,
+    545.7,
+    1254.3,
+    1558.6,
+    1433.6,
+    825.6,
+    454.5,
+    557.1,
+    825.8,
+    1037.5,
+    827.5,
+    499.1,
+    373.3,
+    301.8,
+    212.7,
+    134.3
+   ]
+  },
+  "veh_km": {
+   "baseline": [
+    0.0,
+    1.8,
+    65.1,
+    445.1,
+    1827.4,
+    6174.6,
+    23358.5,
+    85171.4,
+    131138.5,
+    158930.1,
+    204788.0,
+    214116.7,
+    193134.4,
+    171513.9,
+    153931.1,
+    168435.6,
+    185869.3,
+    192754.1,
+    178997.8,
+    149968.0,
+    128207.6,
+    110228.4,
+    84453.0,
+    60099.1
+   ],
+   "scenario": [
+    0.0,
+    1.8,
+    64.7,
+    445.2,
+    1814.6,
+    6176.2,
+    23490.0,
+    84993.5,
+    131046.9,
+    158715.2,
+    204939.6,
+    213482.9,
+    192571.3,
+    171526.7,
+    153689.6,
+    168543.8,
+    186280.9,
+    191916.7,
+    178062.9,
+    149306.1,
+    127951.0,
+    110436.2,
+    84722.3,
+    59777.0
+   ]
+  },
+  "vehicles_on_road": {
+   "baseline": [
+    0.0,
+    0.0,
+    1.5,
+    8.5,
+    30.8,
+    103.5,
+    422.4,
+    1701.0,
+    2611.7,
+    3179.5,
+    4622.6,
+    5202.5,
+    4584.0,
+    3705.3,
+    2937.9,
+    3317.1,
+    3922.4,
+    4225.5,
+    4025.6,
+    3070.1,
+    2506.5,
+    2153.2,
+    1646.5,
+    1161.1
+   ],
+   "scenario": [
+    0.0,
+    0.0,
+    1.5,
+    8.5,
+    30.8,
+    103.7,
+    421.6,
+    1710.7,
+    2623.1,
+    3163.1,
+    4663.6,
+    5130.0,
+    4626.1,
+    3647.2,
+    2933.9,
+    3304.5,
+    3915.4,
+    4237.5,
+    3797.0,
+    2987.2,
+    2519.8,
+    2164.8,
+    1649.2,
+    1148.1
+   ]
+  }
+ },
+ "roads": [
+  {
+   "edge": "-32605881",
+   "name": "Viale Europa",
+   "time_lost_change_vh": -84.2
+  },
+  {
+   "edge": "-320013565",
+   "name": "Viale Europa",
+   "time_lost_change_vh": -46.9
+  },
+  {
+   "edge": "europa_n_in",
+   "name": "Viale Europa",
+   "time_lost_change_vh": 38.9
+  },
+  {
+   "edge": "156395878#0",
+   "name": "Via delle Tagliate",
+   "time_lost_change_vh": 37.1
+  },
+  {
+   "edge": "-462375254#1",
+   "name": "Via Galileo Galilei",
+   "time_lost_change_vh": 34.5
+  },
+  {
+   "edge": "320013568#0",
+   "name": "Viale Europa",
+   "time_lost_change_vh": 33.0
+  },
+  {
+   "edge": "320013563#0",
+   "name": "Viale Europa",
+   "time_lost_change_vh": 27.9
+  },
+  {
+   "edge": "162698836#8",
+   "name": "Via delle Tagliate Seconda",
+   "time_lost_change_vh": -27.3
+  },
+  {
+   "edge": "europa_s_in",
+   "name": "Viale Europa",
+   "time_lost_change_vh": 27.2
+  },
+  {
+   "edge": "156511557#0",
+   "name": "Via delle Città Gemelle",
+   "time_lost_change_vh": -22.2
+  },
+  {
+   "edge": "32605882",
+   "name": "Viale Europa",
+   "time_lost_change_vh": -21.0
+  },
+  {
+   "edge": "-656053688",
+   "name": "Via Giovanni Pascoli",
+   "time_lost_change_vh": -18.7
+  },
+  {
+   "edge": "bandettini_e_in",
+   "name": "Via Teresa Bandettini",
+   "time_lost_change_vh": 18.4
+  },
+  {
+   "edge": "bandettini_w_in",
+   "name": "Via Teresa Bandettini",
+   "time_lost_change_vh": 17.6
+  },
+  {
+   "edge": "587703151#0",
+   "name": "Via Gaetano Luporini",
+   "time_lost_change_vh": -17.3
+  }
+ ],
+ "areas": {},
+ "trips": {
+  "baseline": {
+   "end_s": 90000.0,
+   "trips": 299048,
+   "arrived": 299037,
+   "teleports": 3306,
+   "mean_duration_s": 710.96,
+   "mean_time_lost_s": 153.42,
+   "mean_route_km": 9.434149999999999
+  },
+  "scenario": {
+   "end_s": 90000.0,
+   "trips": 299048,
+   "arrived": 299045,
+   "teleports": 2792,
+   "mean_duration_s": 705.93,
+   "mean_time_lost_s": 149.56,
+   "mean_route_km": 9.41878
+  }
+ },
+ "runs": {
+  "baseline": {
+   "end_s": 90000.0,
+   "trips": 299048,
+   "arrived": 299037,
+   "teleports": 3306,
+   "mean_duration_s": 710.96,
+   "mean_time_lost_s": 153.42,
+   "mean_route_km": 9.434149999999999
+  },
+  "scenario": {
+   "end_s": 90000.0,
+   "trips": 299048,
+   "arrived": 299045,
+   "teleports": 2792,
+   "mean_duration_s": 705.93,
+   "mean_time_lost_s": 149.56,
+   "mean_route_km": 9.41878
+  }
+ }
+}

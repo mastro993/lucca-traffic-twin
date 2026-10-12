@@ -1,0 +1,20 @@
+<!-- The plan the Comune's traffic study recorded on site before the works (Aleph Progetti for Comune di Lucca, "Studio
+     di traffico", PT 60-2024, Table 4.1 and Figures 4.8-4.11): a 110 s cycle in four phases of 10, 50, 30 and 20 s.
+     1: northbound only; 2: Viale Europa both ways, the southbound left turn held; 3: southbound only, with its left
+     turn; 4: Via Teresa Bandettini both ways. Amber (4 s) and all-red (2 s) times are taken out of each phase.
+     Links: 0-3 from the north (right, through, through, left), 4-6 from the east (right, through, left), 7-10 from the
+     south (right, through, through, left), 11-13 from the west (right, through, left); g = gives way. -->
+<tlLogics>
+  <tlLogic id="1686445825" type="static" programID="0" offset="0">
+    <phase duration="10" state="rrrrrrrGGGGrrr"/>   <!-- 1 -->
+    <phase duration="46" state="GGGrrrrGGGgrrr"/>   <!-- 2 -->
+    <phase duration="4" state="GGGrrrryyyyrrr"/>
+    <phase duration="2" state="GGGrrrrrrrrrrr"/>
+    <phase duration="22" state="GGGGrrrrrrrrrr"/>   <!-- 3 -->
+    <phase duration="4" state="yyyyrrrrrrrrrr"/>
+    <phase duration="2" state="rrrrrrrrrrrrrr"/>
+    <phase duration="14" state="rrrrGGgrrrrGGg"/>   <!-- 4 -->
+    <phase duration="4" state="rrrryyyrrrryyy"/>
+    <phase duration="2" state="rrrrrrrrrrrrrr"/>
+  </tlLogic>
+</tlLogics>

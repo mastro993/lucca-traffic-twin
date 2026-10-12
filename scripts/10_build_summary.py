@@ -2,7 +2,7 @@
 calibration table, run statistics and the method / data / limits text.
 usage: python3 scripts/10_build_summary.py"""
 import json, math, re
-from common import RESULTS, WEBDATA
+from common import RESULTS, WEBDATA, VIEWER_SCENARIOS
 meta = json.load(open(WEBDATA / 'static.json'))
 places = meta['places']
 
@@ -57,14 +57,33 @@ def area(h):
     near = min(places, key=lambda p: math.hypot(p['p'][0] - h['x'], p['p'][1] - h['y']))
     return near['n']
 
-out = {'subtitle': 'Eclipse SUMO microsimulation · OpenStreetMap network · weekday and Saturday, 24 h'}
-for key, day in (('wd', 'weekday'), ('sat', 'saturday')):
-    r = json.load(open(RESULTS / f'{day}_results.json'))
+# the viewer's run switch: the baseline and the scenarios of VIEWER_SCENARIOS whose runs 08_export_results.py exported.
+# vs: the run the 24-hour strip draws as a dashed line next to this one
+RUNS = {
+    'base': {'label': 'Baseline', 'note': 'The network as mapped in OpenStreetMap on 11 October 2026. Its roundabout at Viale Europa / '
+             'Via Bandettini keeps the old crossroads\' lane counts, so Before and After redraw that junction.'},
+    'bandettini_signals': {'label': 'Before', 'vs': 'bandettini_roundabout',
+                           'note': 'Viale Europa / Via Bandettini as a signalised crossroads, before the roundabout opened on 31 July 2026: '
+                                   'the 110 s plan the Comune\'s traffic study recorded on site.'},
+    'bandettini_roundabout': {'label': 'After', 'vs': 'bandettini_signals',
+                              'note': 'The Viale Europa / Via Bandettini roundabout as designed: a two-lane ring, two entry lanes from '
+                                      'Viale Europa, one exit lane on every arm.'},
+}
+
+def labelled(r):
     r['hotspots'] = [h for h in r['hotspots'] if not (landmark(h) and 'Città Gemelle' in landmark(h)[2])]
     for h in r['hotspots']:
         h['label'] = label(h); h['area'] = area(h); lm = landmark(h)
         if lm: h['note'] = lm[3]
-    out[key] = r
+    return r
+
+out = {'subtitle': 'Eclipse SUMO microsimulation · OpenStreetMap network · weekday and Saturday, 24 h'}
+for key, day in (('wd', 'weekday'), ('sat', 'saturday')):
+    out[key] = labelled(json.load(open(RESULTS / f'{day}_results.json')))
+shown = [s for s in VIEWER_SCENARIOS if all((RESULTS / 'scenarios' / s / d / 'results.json').exists() for d in ('weekday', 'saturday'))]
+out['runs'] = [{'id': 'base', **RUNS['base']}] + [{'id': s, **RUNS[s]} for s in shown]
+out['scen'] = {f'{key}-{s}': labelled(json.load(open(RESULTS / 'scenarios' / s / day / 'results.json')))
+               for s in shown for key, day in (('wd', 'weekday'), ('sat', 'saturday'))}
 try:
     out['calibration'] = json.load(open(RESULTS / 'calibration.json'))
 except FileNotFoundError:
@@ -115,6 +134,6 @@ out['about'] = {
     'credits': 'Map data © OpenStreetMap contributors. Building heights via OpenMapTiles/OpenFreeMap. Simulation by Eclipse SUMO (EPL-2.0). Rendering with deck.gl.',
 }
 json.dump(out, open(WEBDATA / 'summary.json', 'w'), ensure_ascii=False, separators=(',', ':'))
-for key in ('wd', 'sat'):
-    print(key)
-    for k, h in enumerate(out[key]['hotspots'][:12]): print(f"  {k+1:2d} {h['daily_delay_vh']:7.1f} peak {h['peak_hour']:02d} {h['label']}  [{h['area']}]")
+for key, r in [('wd', out['wd']), ('sat', out['sat']), *out['scen'].items()]:
+    print(key, 'daily delay', round(sum(k['delay_vh'] for k in r['kpi'])))
+    for k, h in enumerate(r['hotspots'][:12]): print(f"  {k+1:2d} {h['daily_delay_vh']:7.1f} peak {h['peak_hour']:02d} {h['label']}  [{h['area']}]")

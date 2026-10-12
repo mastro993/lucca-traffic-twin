@@ -1,5 +1,7 @@
 """Export static 3D scene geometry (roads, buildings, land cover, water, walls, rail, place labels) for the viewer.
 All coordinates are local metres relative to ORIGIN (Piazza San Michele) in the SUMO/UTM frame.
+The roads and signals are those of the baseline network followed by those only the viewer's scenarios have
+(VIEWER_SCENARIOS), so baseline road indices never change; absent[run] lists what a run's network lacks.
 Output: public/data/static.json + build/web/static.bin (packed later by 11_pack_web.py), build/edge_ids.json.
 usage: python3 scripts/06_export_static.py"""
 import sys, json, pickle, struct, collections, math
@@ -8,7 +10,7 @@ from shapely.geometry import Polygon, MultiPolygon, LineString, MultiLineString,
 from shapely.geometry.polygon import orient
 from shapely.ops import unary_union
 from osm_extract import load
-from common import NET, OMT_GEO, OSM_ROADS, WEBRAW, WEBDATA, EDGE_IDS, BBOX, ORIGIN, read_net
+from common import NET, OMT_GEO, OSM_ROADS, WEBRAW, WEBDATA, EDGE_IDS, BBOX, ORIGIN, VIEWER_SCENARIOS, read_net, scenario_net
 
 import os
 WEBDATA.mkdir(parents=True, exist_ok=True)
@@ -136,11 +138,15 @@ for nid, (lon, lat, tags) in nodes.items():
 meta['places'] = labels
 print('walls polys', len(wpolys), 'rail', len(rst) - 1, 'labels', len(labels))
 
-# ---------------- roads = simulated edges
+# ---------------- roads = simulated edges of the baseline, then the scenarios' own
+runs = {'base': sumolib.net.readNet(str(NET), withPrograms=True)} | {r: sumolib.net.readNet(str(scenario_net(r)), withPrograms=True) for r in VIEWER_SCENARIOS}
 ROADCLS = {'highway.motorway': 0, 'highway.motorway_link': 1, 'highway.trunk': 1, 'highway.primary': 2, 'highway.primary_link': 2,
            'highway.secondary': 3, 'highway.secondary_link': 3, 'highway.tertiary': 4, 'highway.tertiary_link': 4,
            'highway.unclassified': 5, 'highway.residential': 6}
-edges = [e for e in net.getEdges() if e.getFunction() != 'internal']
+edges, seen = [], set()
+for rn in runs.values():
+    for e in rn.getEdges():
+        if e.getFunction() != 'internal' and e.getID() not in seen: seen.add(e.getID()); edges.append(e)
 names = sorted(set(e.getName().replace('&apos;', "'") for e in edges))
 nidx = {n: i for i, n in enumerate(names)}
 epos, est, elanes, ecls, ename, elen, espeed, eztl = [], [], [], [], [], [], [], []
@@ -160,17 +166,20 @@ B.add('road_pos', np.array(epos, np.float32)); B.add('road_start', np.array(est,
 B.add('road_lanes', np.array(elanes, np.uint8)); B.add('road_cls', np.array(ecls, np.uint8)); B.add('road_name', np.array(ename, np.uint16))
 B.add('road_len', np.array(elen, np.float32)); B.add('road_speed', np.array(espeed, np.float32)); B.add('road_ztl', np.array(eztl, np.uint8))
 meta['road_names'] = names; meta['roads'] = len(edges)
+absent = {r: {'roads': [i for i, e in enumerate(edges) if not rn.hasEdge(e.getID())]} for r, rn in runs.items()}
 
 # ---------------- turning movements: for every pair of consecutive roads, the lanes (bit 0 = rightmost) a vehicle can
 # leave the first one from, so the trip replay puts vehicles in a lane that leads where they go next
 VEH = ('passenger', 'custom1', 'delivery', 'truck')
 eidx = {e: i for i, e in enumerate(edge_ids)}
 moves = collections.defaultdict(int)
-for e in edges:
-    for lane in e.getLanes():
-        if not any(lane.allows(v) for v in VEH): continue
-        for c in lane.getOutgoing():
-            moves[eidx[e.getID()], eidx[c.getTo().getID()]] |= 1 << min(7, lane.getIndex())
+for rn in runs.values():
+    for e in rn.getEdges():
+        if e.getFunction() == 'internal': continue
+        for lane in e.getLanes():
+            if not any(lane.allows(v) for v in VEH): continue
+            for c in lane.getOutgoing():
+                moves[eidx[e.getID()], eidx[c.getTo().getID()]] |= 1 << min(7, lane.getIndex())
 mv = sorted(moves.items())
 B.add('move_from', np.array([a for (a, _), _ in mv], np.uint16)); B.add('move_to', np.array([b for (_, b), _ in mv], np.uint16))
 B.add('move_lanes', np.array([m for _, m in mv], np.uint8))
@@ -178,12 +187,11 @@ print('turning movements', len(mv))
 
 # ---------------- traffic signals: each fixed-time program, one head over every controlled lane at its stop line, and
 # one pole per approach at the right kerb with an arm reaching over its lanes. Headings are degrees clockwise from north.
-tnet = sumolib.net.readNet(str(NET), withPrograms=True)
-prog, heads, poles = [], [], []
-for k, tl in enumerate(tnet.getTrafficLights()):
+# A signal a scenario adds or changes is a signal of its own, absent from the other runs.
+def signal(tl):
     p = next(iter(tl.getPrograms().values()))
-    prog.append({'o': int(float(p._offset)), 'p': [[int(ph.duration), ph.state] for ph in p.getPhases()]})
-    links = collections.defaultdict(list)
+    prog = {'o': int(float(p._offset)), 'p': [[int(ph.duration), ph.state] for ph in p.getPhases()]}
+    links, heads, poles = collections.defaultdict(list), [], []
     for lane, _, li in tl.getConnections(): links[lane].append(li)
     approaches = collections.defaultdict(list)
     for lane in links: approaches[lane.getEdge()].append(lane)
@@ -192,15 +200,26 @@ for k, tl in enumerate(tnet.getTrafficLights()):
         for lane in lanes:
             (x0, y0), (x1, y1) = lane.getShape()[-2:]
             ang = math.degrees(math.atan2(x1 - x0, y1 - y0))
-            heads.append({'t': k, 'l': sorted(links[lane]), 'p': [round(x1 - X0, 2), round(y1 - Y0, 2)], 'a': round(ang, 1)})
+            heads.append({'l': sorted(links[lane]), 'p': [round(x1 - X0, 2), round(y1 - Y0, 2)], 'a': round(ang, 1)})
         right, left = heads[-len(lanes)], heads[-1]
         a = math.radians(right['a']); rx, ry = math.cos(a), -math.sin(a)   # unit vector to the right of the heading
         off = lanes[0].getWidth() / 2 + 0.8
         px, py = right['p'][0] + rx * off, right['p'][1] + ry * off
         reach = math.hypot(left['p'][0] - px, left['p'][1] - py)
         poles.append({'p': [round(px, 2), round(py, 2)], 'a': right['a'], 'r': round(reach, 2)})
+    return prog, heads, poles
+prog, heads, poles, found = [], [], [], {}   # found: signal -> its index and the runs that have it
+for r, rn in runs.items():
+    for tl in rn.getTrafficLights():
+        sp, sh, so = signal(tl); key = json.dumps([sp, sh, so])
+        if key not in found:
+            k = len(prog); found[key] = (k, set()); prog.append(sp)
+            heads += [{'t': k, **h} for h in sh]; poles += [{'t': k, **o} for o in so]
+        found[key][1].add(r)
+for r in runs: absent[r]['tls'] = sorted(k for k, rs in found.values() if r not in rs)
 meta['tls'] = {'prog': prog, 'heads': heads, 'poles': poles}
-print('traffic signals', len(prog), 'heads', len(heads), 'poles', len(poles))
+meta['absent'] = absent
+print('traffic signals', len(prog), 'heads', len(heads), 'poles', len(poles), 'absent', {r: {k: len(v) for k, v in a.items()} for r, a in absent.items()})
 idx = B.write(WEBRAW / 'static.bin'); meta['index'] = idx
 json.dump(meta, open(WEBDATA / 'static.json', 'w'), separators=(',', ':'), ensure_ascii=False)
 json.dump(edge_ids, open(EDGE_IDS, 'w'))

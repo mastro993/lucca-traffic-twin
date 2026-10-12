@@ -1,0 +1,291 @@
+{
+ "scenario": "bandettini_signals",
+ "day": "saturday",
+ "baseline": "scenarios/baseline/saturday",
+ "hours": [
+  0,
+  24
+ ],
+ "per_hour": {
+  "time_lost_vh": {
+   "baseline": [
+    0.0,
+    0.0,
+    0.1,
+    0.7,
+    2.2,
+    7.6,
+    33.4,
+    222.7,
+    398.3,
+    541.5,
+    1288.4,
+    1778.6,
+    1426.8,
+    971.1,
+    451.2,
+    555.5,
+    894.0,
+    1579.1,
+    1189.6,
+    734.2,
+    379.4,
+    293.1,
+    208.7,
+    132.0
+   ],
+   "scenario": [
+    0.0,
+    0.0,
+    0.1,
+    0.7,
+    2.3,
+    7.8,
+    36.0,
+    226.8,
+    411.3,
+    534.9,
+    1265.7,
+    1524.1,
+    1342.8,
+    706.8,
+    466.6,
+    555.6,
+    875.0,
+    1107.6,
+    1008.7,
+    616.3,
+    376.7,
+    292.9,
+    213.0,
+    133.0
+   ]
+  },
+  "veh_km": {
+   "baseline": [
+    0.0,
+    1.9,
+    65.0,
+    453.1,
+    1807.2,
+    6176.6,
+    23591.0,
+    85098.6,
+    130925.5,
+    159126.5,
+    204414.2,
+    216648.0,
+    194326.5,
+    172703.6,
+    153785.9,
+    168743.1,
+    184296.4,
+    195581.4,
+    181204.6,
+    151020.6,
+    128892.8,
+    110446.7,
+    84545.1,
+    60084.2
+   ],
+   "scenario": [
+    0.0,
+    1.9,
+    64.7,
+    453.2,
+    1807.3,
+    6174.6,
+    23537.9,
+    85144.4,
+    131118.5,
+    159260.5,
+    204479.8,
+    215060.6,
+    193695.3,
+    169354.3,
+    153527.9,
+    167978.5,
+    186077.9,
+    192481.1,
+    178473.3,
+    151201.9,
+    127995.3,
+    110106.5,
+    84738.6,
+    60172.5
+   ]
+  },
+  "vehicles_on_road": {
+   "baseline": [
+    0.0,
+    0.0,
+    1.4,
+    8.4,
+    30.4,
+    102.1,
+    415.7,
+    1700.2,
+    2614.2,
+    3166.0,
+    4685.6,
+    5411.6,
+    4651.0,
+    3823.3,
+    2930.4,
+    3307.7,
+    3951.0,
+    4868.6,
+    4229.7,
+    3255.8,
+    2540.5,
+    2155.7,
+    1640.8,
+    1151.4
+   ],
+   "scenario": [
+    0.0,
+    0.0,
+    1.4,
+    8.4,
+    30.4,
+    102.3,
+    417.3,
+    1704.5,
+    2627.6,
+    3160.2,
+    4663.5,
+    5122.8,
+    4554.5,
+    3483.6,
+    2943.9,
+    3293.2,
+    3965.0,
+    4313.8,
+    3989.6,
+    3136.1,
+    2522.0,
+    2151.6,
+    1648.2,
+    1154.2
+   ]
+  }
+ },
+ "roads": [
+  {
+   "edge": "-32605881",
+   "name": "Viale Europa",
+   "time_lost_change_vh": -107.1
+  },
+  {
+   "edge": "-320013565",
+   "name": "Viale Europa",
+   "time_lost_change_vh": -59.1
+  },
+  {
+   "edge": "156511557#0",
+   "name": "Via delle Città Gemelle",
+   "time_lost_change_vh": -55.1
+  },
+  {
+   "edge": "-156395891#12",
+   "name": "Via Teresa Bandettini",
+   "time_lost_change_vh": -41.6
+  },
+  {
+   "edge": "europa_n_in",
+   "name": "Viale Europa",
+   "time_lost_change_vh": 37.5
+  },
+  {
+   "edge": "-462375254#1",
+   "name": "Via Galileo Galilei",
+   "time_lost_change_vh": 37.5
+  },
+  {
+   "edge": "156395848#1",
+   "name": "Traversa V Via Teresa Bandettini",
+   "time_lost_change_vh": -32.1
+  },
+  {
+   "edge": "-849187134",
+   "name": "Viale Giosuè Carducci",
+   "time_lost_change_vh": -30.0
+  },
+  {
+   "edge": "656053688",
+   "name": "Via Giovanni Pascoli",
+   "time_lost_change_vh": -29.3
+  },
+  {
+   "edge": "156395848#0",
+   "name": "Traversa V Via Teresa Bandettini",
+   "time_lost_change_vh": -28.3
+  },
+  {
+   "edge": "europa_s_in",
+   "name": "Viale Europa",
+   "time_lost_change_vh": 27.8
+  },
+  {
+   "edge": "32605882",
+   "name": "Viale Europa",
+   "time_lost_change_vh": -27.7
+  },
+  {
+   "edge": "-298404550",
+   "name": "Via delle Tagliate",
+   "time_lost_change_vh": -27.3
+  },
+  {
+   "edge": "-56710830",
+   "name": "Via delle Città Gemelle",
+   "time_lost_change_vh": -27.0
+  },
+  {
+   "edge": "1178322698#1",
+   "name": "Via Girolamo Savonarola",
+   "time_lost_change_vh": -26.4
+  }
+ ],
+ "areas": {},
+ "trips": {
+  "baseline": {
+   "end_s": 90000.0,
+   "trips": 299048,
+   "arrived": 299048,
+   "teleports": 3684,
+   "mean_duration_s": 730.33,
+   "mean_time_lost_s": 169.78,
+   "mean_route_km": 9.47265
+  },
+  "scenario": {
+   "end_s": 90000.0,
+   "trips": 299048,
+   "arrived": 299047,
+   "teleports": 2864,
+   "mean_duration_s": 708.58,
+   "mean_time_lost_s": 151.71,
+   "mean_route_km": 9.42834
+  }
+ },
+ "runs": {
+  "baseline": {
+   "end_s": 90000.0,
+   "trips": 299048,
+   "arrived": 299048,
+   "teleports": 3684,
+   "mean_duration_s": 730.33,
+   "mean_time_lost_s": 169.78,
+   "mean_route_km": 9.47265
+  },
+  "scenario": {
+   "end_s": 90000.0,
+   "trips": 299048,
+   "arrived": 299047,
+   "teleports": 2864,
+   "mean_duration_s": 708.58,
+   "mean_time_lost_s": 151.71,
+   "mean_route_km": 9.42834
+  }
+ }
+}
