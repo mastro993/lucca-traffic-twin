@@ -7,17 +7,13 @@ import sumolib
 import numpy as np
 from shapely.geometry import MultiPoint, LineString
 from scipy.spatial import cKDTree
-from common import BUILD, NETDIR, NET, OSM_ROADS, BBOX, sumo_bin, sumo_home, read_net
+from common import BUILD, NETDIR, NET, OSM_ROADS, BBOX, TLS, sumo_bin, sumo_home, read_net
 from osm_extract import load
 import tiles_to_geo
 
 P = NETDIR / 'patches'; P.mkdir(parents=True, exist_ok=True)
 S, W, N, E = BBOX
 KEEP = ['--output.street-names', '--output.original-names']
-# Fixed-time signal plans with Italian standard timings (real plans are not public): 4 s amber, the usual urban value
-# (MIT note 67906/2007: never under 3 s; 3/4/5 s for 50/60/70 km/h approaches), 2 s all-red clearance, 70 s cycle.
-# Fixed-time plans are deterministic, so the viewer can show each light's state from the program alone.
-TLS = ['--tls.default-type', 'static', '--tls.cycle.time', '70', '--tls.yellow.time', '4', '--tls.allred.time', '2']
 
 def nc(*args):
     print('netconvert', ' '.join(map(str, args))[:160], '...')
