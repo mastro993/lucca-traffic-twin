@@ -13,13 +13,20 @@ const LAYER_TOGGLES: [LayerKey, string][] = [['veh', 'Vehicles'], ['tls', 'Traff
 
 export function Panel({ engine }: { engine: Engine }) {
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 760)
-  const { day, mode, layers } = useSelector(viewer, s => ({ day: s.day, mode: s.mode, layers: s.layers }), { compare: shallow })
+  const { day, run, mode, layers } = useSelector(viewer, s => ({ day: s.day, run: s.run, mode: s.mode, layers: s.layers }), { compare: shallow })
+  const runs = engine.summary.runs
   return <aside id="panel" className={collapsed ? 'collapsed' : undefined} aria-label="Simulation controls">
     <button className="sheet-handle" onClick={() => setCollapsed(c => !c)} aria-label="Expand or collapse panel" />
     <div className="scroll">
       <div className="seg" role="group" aria-label="Day type">
         {DAY_BUTTONS.map(([d, label]) => <button key={d} aria-pressed={day === d} onClick={() => void engine.setDay(d)}>{label}</button>)}
       </div>
+      {runs.length > 1 && <div>
+        <div className="seg" role="group" aria-label="Scenario">
+          {runs.map(r => <button key={r.id} aria-pressed={run === r.id} onClick={() => void engine.setRun(r.id)}>{r.label}</button>)}
+        </div>
+        <p className="hint">{runs.find(r => r.id === run)?.note}</p>
+      </div>}
       <Clock />
       <Kpis />
       <div className="legend">

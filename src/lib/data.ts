@@ -5,22 +5,34 @@ export type Day = 'wd' | 'sat'
 export const DAYS: Record<Day, string> = { wd: 'Weekday', sat: 'Saturday' }
 export const otherDay = (d: Day): Day => (d === 'wd' ? 'sat' : 'wd')
 
+// Runs: the baseline and the scenarios the pipeline exported for the run switch. Their roads and signals share one
+// index space, the baseline's first; meta.absent lists what each run's network lacks.
+export type Run = string
+export const BASE: Run = 'base'
+/** Prefix of a run's data files: wd, sat for the baseline, wd-<scenario>, sat-<scenario> for a scenario. */
+export const runKey = (day: Day, run: Run) => (run === BASE ? day : `${day}-${run}`)
+
 type TypedArray = Float32Array | Uint32Array | Uint16Array | Uint8Array | Int16Array
 const T = { float32: Float32Array, uint32: Uint32Array, uint16: Uint16Array, uint8: Uint8Array, int16: Int16Array }
 interface IndexEntry { dtype: keyof typeof T; offset: number; length: number }
 
 export interface Place { n: string; k: string; p: [number, number] }
-export interface Meta { origin: [number, number]; index: Record<string, IndexEntry>; road_names: string[]; places: Place[]; tls: Signals }
+export interface Meta {
+  origin: [number, number]; index: Record<string, IndexEntry>; road_names: string[]; places: Place[]; tls: Signals
+  absent?: Record<Run, { roads: number[]; tls: number[] }>   // road and signal indices a run's network does not have
+}
 export interface Kpi { veh_in_net: number; avg_kmh: number; delay_vh: number; cong_km: number }
 export interface Hotspot {
   id: string; x: number; y: number; lonlat: [number, number]; streets: string[]; control: string; delay_h: number[]
   daily_delay_vh: number; peak_hour: number; peak_delay_vh: number; label?: string; note?: string
   rank: number   // 1-based, added on load
 }
+export interface DayData { kpi: Kpi[]; hotspots: Hotspot[] }
+export interface RunInfo { id: Run; label: string; note: string; vs?: Run }   // vs: the run drawn dashed on the 24-hour strip
 export interface Summary {
   subtitle: string
-  wd: { kpi: Kpi[]; hotspots: Hotspot[] }
-  sat: { kpi: Kpi[]; hotspots: Hotspot[] }
+  wd: DayData; sat: DayData
+  runs: RunInfo[]; scen: Record<string, DayData>   // scen: by runKey, for every run but the baseline
   calibration?: { label: string; src: string; obs: number; sim: number }[]
   about: { intro: string; network: string; demand: string; sim: string; hotspots: string; limits: string; credits: string; sources: { t: string; url: string }[] }
 }
@@ -78,9 +90,12 @@ async function loadScene(): Promise<Scene> {
 
 async function loadSummary(): Promise<Summary> {
   const s = await getJSON<Summary>('summary.json')
-  for (const d of ['wd', 'sat'] as const) s[d].hotspots = s[d].hotspots.slice(0, 12).map((h, k) => ({ ...h, rank: k + 1 }))
+  s.runs ??= [{ id: BASE, label: 'Baseline', note: '' }]; s.scen ??= {}
+  for (const d of [s.wd, s.sat, ...Object.values(s.scen)]) d.hotspots = d.hotspots.slice(0, 12).map((h, k) => ({ ...h, rank: k + 1 }))
   return s
 }
+/** KPIs and critical points of a day of a run. */
+export const dayData = (s: Summary, day: Day, run: Run): DayData => (run === BASE ? s[day] : s.scen[runKey(day, run)])
 
 // <day>_edges: per road and hour, uint8 relative speed, then uint16 flow, delay and density (7 bytes per road-hour)
 function decodeEdges(buf: ArrayBuffer): Edges {
@@ -90,4 +105,5 @@ function decodeEdges(buf: ArrayBuffer): Edges {
 
 export const sceneQuery = queryOptions({ queryKey: ['scene'], queryFn: loadScene })
 export const summaryQuery = queryOptions({ queryKey: ['summary'], queryFn: loadSummary })
-export const edgesQuery = (day: Day) => queryOptions({ queryKey: ['edges', day], queryFn: async () => decodeEdges(await getBin(`${day}_edges.bin`)) })
+export const edgesQuery = (day: Day, run: Run) =>
+  queryOptions({ queryKey: ['edges', runKey(day, run)], queryFn: async () => decodeEdges(await getBin(`${runKey(day, run)}_edges.bin`)) })

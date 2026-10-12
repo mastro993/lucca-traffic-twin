@@ -1,6 +1,6 @@
 // Trip replay files: every simulated trip, with the time it left each road of its route (motion in replay.ts).
 // One LTR1 file per hour holds every vehicle on the road during that hour, so any clock time needs exactly one file.
-import { getBin, type Day } from './data'
+import { getBin, runKey, type Day, type Run } from './data'
 import { pad2 } from './format'
 import type { Routes } from './replay'
 
@@ -33,18 +33,18 @@ export function parseTrips(buf: ArrayBuffer): Trips {
 
 // hour files: undefined while loading, null if missing
 const cache: Record<string, { v: Trips | null | undefined; p: Promise<Trips | null> }> = {}
-const key = (day: Day, h: number) => `${day}_${pad2(h)}`
-function entry(day: Day, h: number) {
-  const k = key(day, h)
+const key = (day: Day, run: Run, h: number) => `${runKey(day, run)}_${pad2(h)}`
+function entry(day: Day, run: Run, h: number) {
+  const k = key(day, run, h)
   let c = cache[k]
   if (!c) { const e = { v: undefined } as (typeof cache)[string]; e.p = getBin(`trips/${k}.bin`).then(parseTrips).catch(() => null).then(v => (e.v = v)); c = cache[k] = e }
   return c
 }
 /** The hour's trips, starting the download if needed. */
-export const trips = (day: Day, h: number) => entry(day, h).v
-export const loadTrips = (day: Day, h: number) => entry(day, h).p
+export const trips = (day: Day, run: Run, h: number) => entry(day, run, h).v
+export const loadTrips = (day: Day, run: Run, h: number) => entry(day, run, h).p
 /** Drop hour files away from the clock. */
-export function keepTrips(day: Day, hour: number) {
-  const keep = [hour, (hour + 1) % 24, (hour + 23) % 24].map(h => key(day, h))
+export function keepTrips(day: Day, run: Run, hour: number) {
+  const keep = [hour, (hour + 1) % 24, (hour + 23) % 24].map(h => key(day, run, h))
   for (const k in cache) if (!keep.includes(k)) delete cache[k]
 }

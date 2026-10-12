@@ -3,7 +3,7 @@
 import { AmbientLight, Deck, FlyToInterpolator, LightingEffect, WebMercatorViewport, _SunLight, type PickingInfo } from '@deck.gl/core/typed'
 import type { QueryClient } from '@tanstack/react-query'
 import { C, hourBlend, lerp, readTokens, type Blend, type Mode } from './color'
-import { edgesQuery, otherDay, type Day, type Hotspot, type Scene, type Summary } from './data'
+import { dayData, edgesQuery, otherDay, type Day, type Hotspot, type Run, type Scene, type Summary } from './data'
 import { fmt, hh, hhmm, spotName } from './format'
 import { buildLayers, groundData, sceneData } from './layers'
 import { cycleOf, LIGHT_NAME, signalAt, type Head } from './signals'
@@ -11,7 +11,7 @@ import { initialState, patch, viewer, type LayerKey, type Tip } from './store'
 import { edgeAt, locate, queue, roadPoint, speedFactors, VSCALE, type Routes, type Spot } from './replay'
 import { keepTrips, trips, VNAME, type Trips } from './trips'
 
-export interface Init { day: Day; t: number; z?: number; still: boolean }
+export interface Init { day: Day; run: Run; t: number; z?: number; still: boolean }
 type ViewState = { longitude: number; latitude: number; zoom: number; pitch: number; bearing: number; [k: string]: unknown }
 type VehView = { length: number; attributes?: Record<string, unknown> }
 interface Follow extends Routes {
@@ -35,7 +35,7 @@ export class Engine {
   private readonly cleanup: (() => void)[] = []
 
   constructor(parent: HTMLDivElement, readonly scene: Scene, readonly summary: Summary, private readonly qc: QueryClient, init: Init) {
-    viewer.setState(() => initialState(init.day, init.t))
+    viewer.setState(() => initialState(init.day, init.run, init.t))
     readTokens(); this.data = sceneData(scene); this.sig = new Uint8Array(scene.meta.tls.heads.length)
     this.t = init.t; this.B = hourBlend(init.t)
     const o = scene.meta.origin; this.mvp = new WebMercatorViewport({ longitude: o[0], latitude: o[1] })
@@ -63,24 +63,32 @@ export class Engine {
       this.tick(performance.now())
       const sub = viewer.subscribe(() => this.render()); this.cleanup.push(() => sub.unsubscribe())
     } else this.raf = requestAnimationFrame(this.frame)
-    void this.qc.prefetchQuery(edgesQuery(otherDay(init.day)))   // background-load the other day
+    this.prefetch()
+  }
+  /** Background-load the road data the strip and the run switch lead to next: the other day, and the run compared with this one. */
+  private prefetch() {
+    const { day, run } = this.state, vs = this.summary.runs.find(r => r.id === run)?.vs
+    void this.qc.prefetchQuery(edgesQuery(otherDay(day), run))
+    if (vs) void this.qc.prefetchQuery(edgesQuery(day, vs))
   }
 
   destroy() { cancelAnimationFrame(this.raf); this.cleanup.forEach(f => f()); this.deck.finalize() }
 
   get state() { return viewer.state }
-  edges(day: Day) { return this.qc.getQueryData(edgesQuery(day).queryKey) }
+  edges(day: Day, run: Run = this.state.run) { return this.qc.getQueryData(edgesQuery(day, run).queryKey) }
 
   // ---------- controls
   setTime(t: number) {
     this.t = t; const h = Math.floor(t / 3600)
-    if (h !== this.state.hour) { patch({ hour: h }); keepTrips(this.state.day, h) }
+    if (h !== this.state.hour) { patch({ hour: h }); keepTrips(this.state.day, this.state.run, h) }
   }
   /** Move the clock from the UI, updating the panels at once. */
   scrub(t: number) { this.setTime(t); this.updateLive() }
-  async setDay(day: Day) {
-    patch({ day, sel: null }); this.stopFollow(); keepTrips(day, this.state.hour)
-    await this.qc.ensureQueryData(edgesQuery(day)); this.updateLive()
+  async setDay(day: Day) { await this.setRunDay(day, this.state.run) }
+  async setRun(run: Run) { await this.setRunDay(this.state.day, run) }
+  private async setRunDay(day: Day, run: Run) {
+    patch({ day, run, sel: null }); this.stopFollow(); keepTrips(day, run, this.state.hour)
+    await this.qc.ensureQueryData(edgesQuery(day, run)); this.updateLive(); this.prefetch()
   }
   setMode(mode: Mode) { patch({ mode }) }
   setPlaying(playing: boolean) { patch({ playing }) }
@@ -88,7 +96,7 @@ export class Engine {
   setLayer(key: LayerKey, on: boolean) { patch({ layers: { ...this.state.layers, [key]: on } }) }
   selectSpot(id: string, fly: boolean) {
     patch({ sel: this.state.sel === id && !fly ? null : id })
-    const h = this.summary[this.state.day].hotspots.find(x => x.id === id)
+    const h = dayData(this.summary, this.state.day, this.state.run).hotspots.find(x => x.id === id)
     if (!h || !fly) return
     this.stopFollow(); this.scrub(h.peak_hour * 3600 + 1800)
     this.deck.setProps({ initialViewState: { ...this.vs, longitude: h.lonlat[0], latitude: h.lonlat[1], zoom: 16.2, pitch: 58, bearing: Math.random() * 60 - 30,
@@ -98,11 +106,11 @@ export class Engine {
   // ---------- animation loop
   private frame = (now: number) => {
     const dt = Math.min(0.1, (now - this.last) / 1000); this.last = now
-    const { playing, mult, day, hour } = this.state
+    const { playing, mult, day, run, hour } = this.state
     if (playing) {
       let t = this.t + dt * mult
       // hold at the hour boundary until the next hour's trips are in (the call also prefetches them)
-      if (trips(day, (hour + 1) % 24) === undefined) t = Math.min(t, (hour + 1) * 3600 - 0.001)
+      if (trips(day, run, (hour + 1) % 24) === undefined) t = Math.min(t, (hour + 1) * 3600 - 0.001)
       this.setTime(t >= 86400 ? t - 86400 : t)
     }
     this.tick(now)
@@ -119,14 +127,14 @@ export class Engine {
 
   // clock and KPIs: vehicles and speed are counted live from the replay, the rest blends the hourly figures
   private updateLive() {
-    const k = this.summary[this.state.day].kpi, b = hourBlend(this.t), at = (key: keyof (typeof k)[number]) => lerp(k[b[0]][key], k[b[1]][key], b[2])
+    const k = dayData(this.summary, this.state.day, this.state.run).kpi, b = hourBlend(this.t), at = (key: keyof (typeof k)[number]) => lerp(k[b[0]][key], k[b[1]][key], b[2])
     const v = this.vehSet, f = this.follow
     patch({ t: this.t, follow: f && { ...f.card },
       kpi: { veh: v ? this.live.n : at('veh_in_net'), kmh: v && this.live.n ? this.live.kmh : at('avg_kmh'), delay: at('delay_vh'), cong: at('cong_km') } })
   }
 
   private updateVehicles() {
-    const { day, hour, layers } = this.state, c = trips(day, hour) ?? null, roads = this.scene.roads
+    const { day, run, hour, layers } = this.state, c = trips(day, run, hour) ?? null, roads = this.scene.roads
     this.vehSet = c; this.live.n = 0; this.live.kmh = 0
     if (!c) { this.vehView = { length: 0 }; return }
     if (!c.ready) { c.vf = speedFactors(roads, c, c.n); c.ready = true }

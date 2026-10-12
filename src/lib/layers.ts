@@ -4,9 +4,9 @@ import { COORDINATE_SYSTEM } from '@deck.gl/core/typed'
 import { ColumnLayer, PathLayer, ScatterplotLayer, SolidPolygonLayer, TextLayer } from '@deck.gl/layers/typed'
 import { SimpleMeshLayer } from '@deck.gl/mesh-layers/typed'
 import { blendOf, C, delayStops, lerp, mix, ramp, sevColor, speedStops, volStops, type RGBA } from './color'
-import type { Edges, Hotspot, Scene } from './data'
+import { dayData, type Edges, type Hotspot, type Run, type Scene } from './data'
 import type { Engine } from './engine'
-import type { Head } from './signals'
+import type { Head, Pole } from './signals'
 
 function boxMesh() {
   const P: number[] = [], N: number[] = [], U: number[] = []
@@ -25,20 +25,29 @@ type Box = { x: number; y: number; z: number; a: number; s: [number, number, num
 type Lamp = Box & { h: number; c: number; glow: [number, number, number] }   // glow: centre of the halo just in front of the lamp
 const POLE_H = 7.2, ARM_Z = 6.9, HEAD_Z = 4.5, LAMP_Z = [6.05, 5.35, 4.65]
 const LAMP: [lit: RGBA, dark: RGBA][] = [[[255, 45, 35, 255], [70, 24, 22, 255]], [[255, 176, 0, 255], [72, 56, 18, 255]], [[40, 225, 95, 255], [20, 62, 34, 255]]]
-function signalParts({ tls }: Scene['meta']) {
+export type RunHead = Head & { i: number }   // i: index of the head in meta.tls.heads, where the engine keeps its light
+function signalParts(poles: Pole[], heads: RunHead[]) {
   const dir = (a: number) => [Math.sin(a * Math.PI / 180), Math.cos(a * Math.PI / 180)]
   const frame: Box[] = []
-  for (const { p, a, r } of tls.poles) {
+  for (const { p, a, r } of poles) {
     const [dx, dy] = dir(a)   // the arm runs to the left of the heading: (-dy, dx)
     frame.push({ x: p[0], y: p[1], z: 0, a, s: [0.3, 0.3, POLE_H] })
     if (r > 0.3) frame.push({ x: p[0] - dy * r / 2, y: p[1] + dx * r / 2, z: ARM_Z, a, s: [r + 0.3, 0.22, 0.22] })
   }
   const lamps: Lamp[] = []
-  tls.heads.forEach(({ p, a }, h) => {
+  for (const { p, a, i: h } of heads) {
     const [dx, dy] = dir(a)
     for (let c = 0; c < 3; c++) lamps.push({ x: p[0] - dx * 0.34, y: p[1] - dy * 0.34, z: LAMP_Z[c], a, s: [0.6, 0.1, 0.6], h, c, glow: [p[0] - dx * 0.5, p[1] - dy * 0.5, LAMP_Z[c] + 0.3] })
-  })
+  }
   return { frame, lamps }
+}
+
+/** What a run draws: every road and signal but those its network lacks. */
+export function runParts({ roads, meta }: Pick<Scene, 'roads' | 'meta'>, run: Run) {
+  const a = meta.absent?.[run], noRoad = new Set(a?.roads), noTls = new Set(a?.tls)
+  const heads: RunHead[] = meta.tls.heads.flatMap((h, i) => (noTls.has(h.t) ? [] : [{ ...h, i }]))
+  return { major: roads.major.filter(i => !noRoad.has(i)), minor: roads.minor.filter(i => !noRoad.has(i)), heads,
+    ...signalParts(meta.tls.poles.filter(p => !noTls.has(p.t)), heads) }
 }
 
 function groundColors({ gnd }: Scene) {
@@ -54,7 +63,7 @@ export const groundData = (s: Scene) => ({ length: s.gnd.length, startIndices: s
 export function sceneData(s: Scene) {
   const { ww, rail, wall, bld } = s
   return {
-    ground: groundData(s), signals: signalParts(s.meta),
+    ground: groundData(s), runs: Object.fromEntries(Object.keys(s.meta.absent ?? { base: 0 }).map(r => [r, runParts(s, r)])),
     ww: { length: ww.length, startIndices: ww.startIndices, attributes: { getPath: { value: ww.pos, size: 2 } } },
     rail: { length: rail.length, startIndices: rail.startIndices, attributes: { getPath: { value: rail.pos, size: 2 } } },
     wall: { length: wall.length, startIndices: wall.startIndices, attributes: { getPolygon: { value: wall.pos, size: 2 } } },
@@ -63,7 +72,7 @@ export function sceneData(s: Scene) {
 }
 
 export function buildLayers(g: Engine) {
-  const { roads, meta, ww } = g.scene, st = g.state, E = g.edges(st.day), B = g.B, rev = st.themeRev
+  const { roads, meta, ww } = g.scene, st = g.state, E = g.edges(st.day, st.run), B = g.B, rev = st.themeRev, R = g.data.runs[st.run] ?? g.data.runs.base
   const COORD = { coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS, coordinateOrigin: [meta.origin[0], meta.origin[1], 0] as [number, number, number] }
   const roadColorAt = (E: Edges, h: number, i: number): RGBA => {
     const k = h * roads.n + i, s = E.spd[k]
@@ -88,29 +97,29 @@ export function buildLayers(g: Engine) {
     getPath: (i: number) => roads.pos.subarray(roads.start[i] * 2, roads.start[i + 1] * 2) as never, getWidth: roadWidth, widthUnits: 'meters' as const, widthMaxPixels: 40,
     getColor: (i: number) => (E ? mix(roadColorAt(E, B[0], i), roadColorAt(E, B[1], i), B[2]) : C.road),
     capRounded: true, jointRounded: true, pickable: true, autoHighlight: true, highlightColor: [255, 255, 255, 90] as RGBA,
-    updateTriggers: { getColor: [st.day, g.ct, st.mode, rev, !!E], getWidth: [st.mode, st.mode === 'vol' ? st.day + g.ct : 0] } }
-  L.push(new PathLayer<number>({ id: 'roads-minor', data: roads.minor, widthMinPixels: 0.7, opacity: 0.7, ...roadProps }))
-  L.push(new PathLayer<number>({ id: 'roads', data: roads.major, widthMinPixels: 1.6, ...roadProps }))
+    updateTriggers: { getColor: [st.day, st.run, g.ct, st.mode, rev, !!E], getWidth: [st.mode, st.mode === 'vol' ? st.day + st.run + g.ct : 0] } }
+  L.push(new PathLayer<number>({ id: 'roads-minor', data: R.minor, widthMinPixels: 0.7, opacity: 0.7, ...roadProps }))
+  L.push(new PathLayer<number>({ id: 'roads', data: R.major, widthMinPixels: 1.6, ...roadProps }))
   L.push(new SolidPolygonLayer({ id: 'walls', ...COORD, data: g.data.wall as never, positionFormat: 'XY', _normalize: false, extruded: true, getElevation: 12, getFillColor: C.wall,
     material: { ambient: .55, diffuse: .55 }, updateTriggers: { getFillColor: rev } }))
   if (st.layers.bld) L.push(new SolidPolygonLayer({ id: 'buildings', ...COORD, data: g.data.bld as never, positionFormat: 'XY', _normalize: false, extruded: true, getFillColor: C.bldA,
     material: { ambient: .45, diffuse: .65, shininess: 8, specularColor: [40, 40, 40] }, updateTriggers: { getFillColor: rev } }))
   if (st.layers.tls) {
-    const tls = meta.tls, sig = g.sig, key = g.sigKey, lit = (h: number) => LAMP[sig[h]][0]
+    const sig = g.sig, key = g.sigKey, lit = (h: number) => LAMP[sig[h]][0]
     if (g.zoom >= 16) {
       const box = { ...COORD, mesh: MESH as never, sizeScale: 1, getOrientation: (d: Box) => [0, -d.a, 0] as [number, number, number], getScale: (d: Box) => d.s }
-      L.push(new SimpleMeshLayer<Box>({ id: 'tls-frame', ...box, data: g.data.signals.frame, getPosition: d => [d.x, d.y, d.z], getColor: [58, 62, 66, 255],
+      L.push(new SimpleMeshLayer<Box>({ id: 'tls-frame', ...box, data: R.frame, getPosition: d => [d.x, d.y, d.z], getColor: [58, 62, 66, 255],
         material: { ambient: .5, diffuse: .6 } }))
-      L.push(new SimpleMeshLayer<Head>({ id: 'tls-heads', ...COORD, mesh: MESH as never, sizeScale: 1, data: tls.heads, pickable: true,
+      L.push(new SimpleMeshLayer<RunHead>({ id: 'tls-heads', ...COORD, mesh: MESH as never, sizeScale: 1, data: R.heads, pickable: true,
         getPosition: d => [d.p[0], d.p[1], HEAD_Z], getOrientation: d => [0, -d.a, 0], getScale: [0.84, 0.6, 2.4], getColor: [32, 34, 36, 255], material: { ambient: .5, diffuse: .6 } }))
-      L.push(new SimpleMeshLayer<Lamp>({ id: 'tls-lamps', ...box, data: g.data.signals.lamps, getPosition: d => [d.x, d.y, d.z],
+      L.push(new SimpleMeshLayer<Lamp>({ id: 'tls-lamps', ...box, data: R.lamps, getPosition: d => [d.x, d.y, d.z],
         getColor: d => LAMP[d.c][sig[d.h] === d.c ? 0 : 1], material: { ambient: 1, diffuse: 0, shininess: 0 }, updateTriggers: { getColor: key } }))
-      L.push(new ScatterplotLayer<Head>({ id: 'tls-glow', ...COORD, data: tls.heads, billboard: true, radiusUnits: 'meters', getRadius: 0.8, stroked: false,
-        getPosition: (_, { index }) => g.data.signals.lamps[index * 3 + sig[index]].glow, getFillColor: (_, { index }) => [...lit(index).slice(0, 3), 100] as RGBA,
+      L.push(new ScatterplotLayer<RunHead>({ id: 'tls-glow', ...COORD, data: R.heads, billboard: true, radiusUnits: 'meters', getRadius: 0.8, stroked: false,
+        getPosition: (d, { index }) => R.lamps[index * 3 + sig[d.i]].glow, getFillColor: d => [...lit(d.i).slice(0, 3), 100] as RGBA,
         updateTriggers: { getPosition: key, getFillColor: key } }))
-    } else L.push(new ScatterplotLayer<Head>({ id: 'tls-dots', ...COORD, data: tls.heads, getPosition: d => [d.p[0], d.p[1], 1.5], radiusUnits: 'meters', getRadius: 2,
+    } else L.push(new ScatterplotLayer<RunHead>({ id: 'tls-dots', ...COORD, data: R.heads, getPosition: d => [d.p[0], d.p[1], 1.5], radiusUnits: 'meters', getRadius: 2,
       radiusMinPixels: 2.5, radiusMaxPixels: 6, stroked: true, lineWidthUnits: 'pixels', getLineWidth: 1, getLineColor: [20, 20, 20, 200],
-      getFillColor: (_, { index }) => lit(index), pickable: true, updateTriggers: { getFillColor: key } }))
+      getFillColor: d => lit(d.i), pickable: true, updateTriggers: { getFillColor: key } }))
   }
   const f = g.follow
   if (f?.paths) for (const halo of [true, false]) L.push(new PathLayer<{ p: Float32Array; done: boolean }>({ id: halo ? 'route-halo' : 'route', ...COORD, data: f.paths,
@@ -125,7 +134,7 @@ export function buildLayers(g: Engine) {
     getPosition: d => [d.x, d.y, 1], radiusUnits: 'pixels', getRadius: d => (d.end === 2 ? 11 : 6), stroked: true, filled: true, lineWidthUnits: 'pixels', getLineWidth: 2.5,
     getFillColor: d => (d.end === 1 ? C.accent : [0, 0, 0, 0]), getLineColor: C.accent, updateTriggers: { getPosition: g.t, getFillColor: rev, getLineColor: rev } }))
   if (st.layers.hot) {
-    const hd = g.summary[st.day].hotspots, dh = (d: Hotspot) => blendOf(d.delay_h, B)
+    const hd = dayData(g.summary, st.day, st.run).hotspots, dh = (d: Hotspot) => blendOf(d.delay_h, B)
     L.push(new ScatterplotLayer<Hotspot>({ id: 'hot-ring', ...COORD, data: hd, getPosition: d => [d.x, d.y, 1], getRadius: d => 20 + Math.sqrt(dh(d)) * 14, radiusUnits: 'meters',
       stroked: true, filled: true, getFillColor: d => { const c = sevColor(dh(d)); return [c[0], c[1], c[2], 30] }, getLineColor: d => { const c = sevColor(dh(d)); return [c[0], c[1], c[2], 200] },
       lineWidthUnits: 'pixels', getLineWidth: 1.5, updateTriggers: { getRadius: [st.day, g.ct], getFillColor: [st.day, g.ct, rev], getLineColor: [st.day, g.ct, rev] } }))

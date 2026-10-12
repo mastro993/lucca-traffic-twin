@@ -24,12 +24,13 @@ individually.
 | **Clock** | The simulation runs as a continuous 24-hour clock at 1×, 10×, 60× or 360× real time. Traffic builds up and fades minute by minute; nothing restarts when the hour changes. At midnight the clock wraps to the start of the same simulated day, which begins with an empty network. |
 | **Roads** | Coloured by speed (simulated speed ÷ speed limit), volume (vehicles/h per lane) or delay (vehicle-minutes lost per km). The hourly averages are blended as the clock moves, so colours change gradually. |
 | **Vehicles** | Every simulated trip, replayed from departure to arrival along the route SUMO chose, at the times each vehicle entered and left every road. On each road a vehicle drives in a lane that leads to its next road, at its own free speed, and waits in the queue at the stop line until the second SUMO let it go, so vehicles stop at red lights and queue behind each other. Dark (light theme) or white (dark theme) = cars, orange = vans and lorries, blue = ZTL permit holders, red = crawling (under 5 km/h). **Click a vehicle to follow it**: the camera tracks it, its route is drawn, and a card shows departure, arrival, distance and speed. |
-| **Traffic lights** | The 22 signals in the network, running the fixed-time plans SUMO simulated. Zoomed in, each approach has a pole with an arm over its lanes and a head per lane whose red, amber or green lamp is lit (heads are drawn at twice their real size); zoomed out, each head is a coloured dot. Hover a light for its state, the seconds until it changes and the cycle length. |
+| **Traffic lights** | The 22 signals in the network (23 in the Before run), running the fixed-time plans SUMO simulated. Zoomed in, each approach has a pole with an arm over its lanes and a head per lane whose red, amber or green lamp is lit (heads are drawn at twice their real size); zoomed out, each head is a coloured dot. Hover a light for its state, the seconds until it changes and the cycle length. |
 | **Critical points** | The 12 junction clusters with the most daily delay. Column height = delay at the current time; click one to fly to it at its peak hour. |
-| **24-hour strip** | Network-wide delay per hour (bars = selected day, dashed = the other day) with the clock's playhead. Drag to scrub through the day; **Play** runs the clock. |
+| **24-hour strip** | Network-wide delay per hour (bars = selected day and run; dashed = the other day, or in Before and After the other of the two) with the clock's playhead. Drag to scrub through the day; **Play** runs the clock. |
 | **Panel** | Vehicles on the road and their average speed right now (counted from the replay), delay and km of congested road (blended hourly figures), plus the method, the calibration table and the sources. |
+| **Before and after** | The switch under the day toggle shows the baseline or one of two scenario runs: **Before**, the Viale Europa / Via Teresa Bandettini junction as the signalised crossroads it was until 30 July 2026, and **After**, the roundabout that replaced it (see [Before and after](#before-and-after-the-viale-europa--via-teresa-bandettini-roundabout)). Roads, signals, vehicles, critical points and figures all switch; the clock and the camera stay. |
 
-Deep links: `?h=8` opens 08:00 (`?h=8.5` opens 08:30), `?d=sat` opens Saturday, `?z=16` zooms in. For example, [`?d=sat&h=11`](https://mastro993.github.io/lucca-traffic-twin/?d=sat&h=11) opens the Saturday 11:00 peak.
+Deep links: `?h=8` opens 08:00 (`?h=8.5` opens 08:30), `?d=sat` opens Saturday, `?s=bandettini_signals` (Before) or `?s=bandettini_roundabout` (After) opens a scenario run, `?z=16` zooms in. For example, [`?d=sat&h=11`](https://mastro993.github.io/lucca-traffic-twin/?d=sat&h=11) opens the Saturday 11:00 peak.
 
 | Saturday 11:00 | Weekday 17:00, close-up (dark mode) |
 |---|---|
@@ -185,7 +186,7 @@ The pipeline is deterministic. With fixed random seeds, the committed network an
 | 5 | `05_generate_demand.py <day> [scale]` | `demand/<day>.trips.xml.gz` |
 | 6 | `06_export_static.py` | viewer scene: buildings, land cover, walls, roads |
 | 7 | `07_run_simulation.py <day> [trips]` | `results/<day>/`: edge data, statistics, tripinfo, vehroutes |
-| 8 | `08_export_results.py <day>` | per-edge hourly metrics, KPIs, critical points, trip replay |
+| 8 | `08_export_results.py <day> [scenario]` | per-edge hourly metrics, KPIs, critical points, trip replay; with a scenario, its run for the viewer's switch |
 | 9 | `09_check_counts.py` | `results/calibration.json` |
 | 10 | `10_build_summary.py` | `public/data/summary.json` |
 | 11 | `11_pack_web.py` | `public/data/*.b64.txt` |
@@ -308,6 +309,17 @@ programmes at other times of day. The "before" run's waits on Via Bandettini are
 the roundabout, so the West Lucca figures count about 60 veh-h a day of waiting at the old stop lines that, with the
 roundabout, partly moves onto the ring; the junction row, from the vehicle routes, counts it.
 
+**In the viewer**, the Before and After switch replays the first seed of both scenarios, so a single hour there also
+differs by chance; the table above averages three seeds. After re-running them, `python3 scripts/08_export_results.py
+<day> <scenario>` for each day and scenario, then steps 10 and 11, update the viewer (`run_pipeline.sh` does this for
+every scenario whose run is in `results/scenarios/`). To show another scenario, add it to `VIEWER_SCENARIOS` in
+`scripts/common.py` and give it a label and a note in `RUNS` in `10_build_summary.py`, then re-run step 6 first: the
+scene holds the roads and signals of every run.
+
+| Before: the signalised crossroads, weekday 08:31 | After: the roundabout, same time |
+|---|---|
+| ![Before](docs/assets/bandettini_before.jpg) | ![After](docs/assets/bandettini_after.jpg) |
+
 ### Viewer
 The viewer (`src/`, `index.html`, `package.json` at the repository root) is a [Vite](https://vite.dev) + React + TypeScript app (pnpm), rendering with [deck.gl](https://deck.gl) 8.9.
 [TanStack Router](https://tanstack.com/router) parses the deep links and loads the data before the first frame,
@@ -333,10 +345,16 @@ Every push to `main` that touches the viewer builds the site and deploys it to G
 
 **Binary files.** They are stored as gzip + base64 text so the same page also works on hosts that only serve text:
 - `static`: typed arrays for buildings, ground, roads and walls, indexed in `static.json`. Roads are drawn along the middle of their lanes; `move_from`, `move_to` and `move_lanes` list, for each pair of consecutive roads, the lanes of the first (a bit mask, bit 0 = rightmost) that lead to the second.
-- `<day>_edges`: uint8 speed ratio, uint16 flow, delay and density per edge and hour.
-- `trips/<day>_HH`: the `LTR1` trip replay, one file per hour holding every vehicle on the road during that hour, so any clock time needs a single file. A 16-byte header (magic, vehicles, route edges, hour start), then per vehicle the uint32 departure second and the uint16 route length; per route edge a uint16 road index and the uint16 seconds since the previous exit; finally per vehicle the type and the departure and arrival positions on their edges (uint8, 0–255 of the edge length). The viewer rebuilds the motion in between the way [MATSim](https://matsim.org) draws its queue snapshots. On each road a vehicle drives in a lane that leads to its next road, at its free speed (the speed limit times its own speed factor, estimated from its fastest roads), until it reaches the back of the queue of vehicles that entered the lane before it and leave first; it waits there, moving up as they leave (each gives up its place over its last 2 s), until its own exit time, then crosses the junction in a straight line. A vehicle that took at most 3 s, or 25%, longer than its free-flow time on a road (whichever is more) drives it at a steady speed instead. SUMO only lets a vehicle leave a signalised approach on green or amber, so the replayed vehicles stop at red lights.
+- `<run>_edges`: uint8 speed ratio, uint16 flow, delay and density per edge and hour. `<run>` is `wd` or `sat` for the baseline, `wd-<scenario>` or `sat-<scenario>` for a scenario of the run switch.
+- `trips/<run>_HH`: the `LTR1` trip replay, one file per hour holding every vehicle on the road during that hour, so any clock time needs a single file. A 16-byte header (magic, vehicles, route edges, hour start), then per vehicle the uint32 departure second and the uint16 route length; per route edge a uint16 road index and the uint16 seconds since the previous exit; finally per vehicle the type and the departure and arrival positions on their edges (uint8, 0–255 of the edge length). The viewer rebuilds the motion in between the way [MATSim](https://matsim.org) draws its queue snapshots. On each road a vehicle drives in a lane that leads to its next road, at its free speed (the speed limit times its own speed factor, estimated from its fastest roads), until it reaches the back of the queue of vehicles that entered the lane before it and leave first; it waits there, moving up as they leave (each gives up its place over its last 2 s), until its own exit time, then crosses the junction in a straight line. A vehicle that took at most 3 s, or 25%, longer than its free-flow time on a road (whichever is more) drives it at a steady speed instead. SUMO only lets a vehicle leave a signalised approach on green or amber, so the replayed vehicles stop at red lights.
 
-**Traffic lights** are in `static.json` under `tls`: `prog` holds each signal's plan (offset and `[seconds, state]` phases, one SUMO state letter per controlled link), `heads` one head per controlled lane (signal index, link indices, stop-line position, heading in degrees clockwise from north) and `poles` one pole per approach (position, heading, arm reach in metres). A head shows green if any of its links has `G` or `g`, amber for `y`, red otherwise.
+**Traffic lights** are in `static.json` under `tls`: `prog` holds each signal's plan (offset and `[seconds, state]` phases, one SUMO state letter per controlled link), `heads` one head per controlled lane (signal index, link indices, stop-line position, heading in degrees clockwise from north) and `poles` one pole per approach (signal index, position, heading, arm reach in metres). A head shows green if any of its links has `G` or `g`, amber for `y`, red otherwise.
+
+**Runs.** The scene holds the roads and signals of every run: the baseline's first, so their indices never change, then
+those only a scenario's network has. A scenario's changed signal is a signal of its own. `static.json` lists under
+`absent`, for each run (`base` or the scenario's name), the road and signal indices its network lacks, and the viewer
+hides them. `summary.json` lists the switch's runs under `runs` (id, label, note, and `vs`, the run the strip draws
+dashed) and their KPIs and critical points under `scen`, by file prefix (`wd-<scenario>`).
 
 **Coordinates** are local metres in the SUMO/UTM frame, relative to Piazza San Michele.
 
@@ -358,7 +376,7 @@ Every push to `main` that touches the viewer builds the site and deploys it to G
 - [ ] **The planned "Assi viari" / Viabilità Est** (Ponte a Moriano – A11 Frizzone / Lucca Est) and a new Serchio bridge.
 - [ ] **Ramp metering or toll-plaza layout** at Lucca Est and Capannori.
 - [ ] **Demand-side measures:** staggered school starts (8:00 / 8:30), modal shift for school trips, Saturday parking guidance.
-- [ ] **Comparison mode** in the viewer: scenario vs baseline difference maps.
+- [ ] **Difference maps** in the viewer: colour each road by its change between two runs (the run switch shows one run at a time).
 
 ## Data access notes
 - Overpass rejected the single large query (HTTP 504), so the extract was downloaded in 12 tiles and merged (`merge_osm.py`).

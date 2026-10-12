@@ -22,7 +22,7 @@ usage: python3 scripts/12_scenario.py baseline <weekday|saturday>   # the refere
 import os, re, sys, json, subprocess, collections
 from lxml import etree
 from sumolib.geomhelper import distancePointToPolygon, positionAtShapeOffset, polyLength
-from common import ROOT, NET, RESULTS, BUILD, OSM_ROADS, TLS, sumo_bin, zopen, read_net, run_stats
+from common import ROOT, NET, RESULTS, BUILD, OSM_ROADS, zopen, read_net, run_stats, build_scenario_net
 
 name, day = sys.argv[1], sys.argv[2]
 src = ROOT / 'scenarios' / name
@@ -33,14 +33,7 @@ base_name = os.environ.get('BASE', 'baseline')
 run, base = RESULTS / 'scenarios' / name / out_dir, RESULTS / 'scenarios' / base_name / out_dir
 
 if os.environ.get('COMPARE') != '1':
-    net.parent.mkdir(parents=True, exist_ok=True)
-    # new signals get the network's standard plan, new roads no U-turns, as in 03_build_network.py
-    cmd = [sumo_bin('netconvert'), '-s', str(NET), '-o', str(net), '--output.street-names', '--output.original-names', '--no-warnings',
-           *TLS, '--no-turnarounds.except-deadend']
-    for ext, opt in (('nod', '-n'), ('edg', '-e'), ('con', '-x'), ('tll', '-i')):
-        files = sorted(str(p) for p in src.glob(f'*.{ext}.xml'))
-        if files: cmd += [opt, ','.join(files)]
-    subprocess.run(cmd, check=True)
+    build_scenario_net(name)
     trips = src / f'{day}.trips.xml.gz'
     subprocess.run([sys.executable, str(ROOT / 'scripts' / '07_run_simulation.py'), day, *([str(trips)] if trips.exists() else [])],
                    check=True, env={**os.environ, 'NET': str(net), 'RUN_NAME': f'scenarios/{name}/{out_dir}'})

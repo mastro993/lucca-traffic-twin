@@ -15,6 +15,12 @@ if [ "${SIMULATE:-1}" = "1" ]; then
 fi
 python3 $S/08_export_results.py weekday
 python3 $S/08_export_results.py saturday
+# the viewer's scenarios (VIEWER_SCENARIOS in scripts/common.py), when their runs from 12_scenario.py are here
+for s in $(cd $S && python3 -c 'from common import VIEWER_SCENARIOS as v; print(*v)'); do
+  for d in weekday saturday; do
+    if [ -f results/scenarios/$s/$d/edgedata_hourly.xml.gz ]; then python3 $S/08_export_results.py $d $s; fi
+  done
+done
 python3 $S/09_check_counts.py weekday
 python3 $S/10_build_summary.py
 python3 $S/11_pack_web.py

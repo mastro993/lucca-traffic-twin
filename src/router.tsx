@@ -1,7 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { createRootRouteWithContext, createRoute, createRouter, type ErrorComponentProps } from '@tanstack/react-router'
 import { Viewer } from './components/Viewer'
-import { edgesQuery, sceneQuery, summaryQuery } from './lib/data'
+import { BASE, edgesQuery, sceneQuery, summaryQuery } from './lib/data'
 import { startTime, validateSearch } from './lib/search'
 import { loadTrips } from './lib/trips'
 
@@ -15,13 +15,15 @@ const viewerRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
   validateSearch,
-  loaderDeps: ({ search }) => ({ d: search.d ?? 'wd', hour: Math.floor(startTime(search) / 3600) }),
-  // the map, the summary, the day's road data and the opening hour's trips; the map labels' font weights must be loaded
-  // before the first draw, since deck.gl rasterises the glyphs once
-  loader: async ({ context: { queryClient: qc }, deps: { d, hour } }) => {
-    const [scene, summary] = await Promise.all([qc.ensureQueryData(sceneQuery), qc.ensureQueryData(summaryQuery), qc.ensureQueryData(edgesQuery(d)),
-      loadTrips(d, hour), document.fonts.load('600 15px "Barlow Condensed"'), document.fonts.load('700 15px "Barlow Condensed"')])
-    return { scene, summary }
+  loaderDeps: ({ search }) => ({ d: search.d ?? 'wd', s: search.s ?? BASE, hour: Math.floor(startTime(search) / 3600) }),
+  // the map, the summary, the run's road data and the opening hour's trips; the map labels' font weights must be loaded
+  // before the first draw, since deck.gl rasterises the glyphs once. The summary lists the runs a deep link may open, so
+  // the run's files wait for it; the map and the fonts do not.
+  loader: async ({ context: { queryClient: qc }, deps: { d, s, hour } }) => {
+    const sceneP = Promise.all([qc.ensureQueryData(sceneQuery), document.fonts.load('600 15px "Barlow Condensed"'), document.fonts.load('700 15px "Barlow Condensed"')])
+    const summary = await qc.ensureQueryData(summaryQuery), run = summary.runs.some(r => r.id === s) ? s : BASE
+    const [[scene]] = await Promise.all([sceneP, qc.ensureQueryData(edgesQuery(d, run)), loadTrips(d, run, hour)])
+    return { scene, summary, run }
   },
   component: Viewer,
   pendingComponent: Loading,

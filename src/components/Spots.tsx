@@ -1,5 +1,6 @@
 import { shallow, useSelector } from '@tanstack/react-store'
 import { css, sevColor } from '../lib/color'
+import { dayData } from '../lib/data'
 import type { Engine } from '../lib/engine'
 import { controlName, fmt, pad2, spotName } from '../lib/format'
 import { viewer } from '../lib/store'
@@ -16,9 +17,9 @@ function Spark({ arr, h, col }: { arr: number[]; h: number; col: string }) {
 }
 
 export function Spots({ engine }: { engine: Engine }) {
-  const { day, hour, sel } = useSelector(viewer, s => ({ day: s.day, hour: s.hour, sel: s.sel, rev: s.themeRev }), { compare: shallow })
+  const { day, run, hour, sel } = useSelector(viewer, s => ({ day: s.day, run: s.run, hour: s.hour, sel: s.sel, rev: s.themeRev }), { compare: shallow })
   return <ol className="spots">
-    {engine.summary[day].hotspots.map(h => {
+    {dayData(engine.summary, day, run).hotspots.map(h => {
       const col = css(sevColor(h.peak_delay_vh)), now = h.delay_h[hour], go = () => engine.selectSpot(h.id, true)
       return <li key={h.id} className="spot" role="option" tabIndex={0} aria-selected={sel === h.id} onClick={go}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go() } }}>
