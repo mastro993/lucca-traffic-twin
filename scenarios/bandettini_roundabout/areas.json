@@ -1,0 +1,9 @@
+{
+  "Approaches to the Bandettini junction, 100 m (its inside not counted)": {"near": [43.83619, 10.49481, 100]},
+  "Teresa Mattei roundabout, Viale Carducci / Viale Europa (100 m)": {"near": [43.83981, 10.49528, 100]},
+  "Viale Europa (SS12 radd.), Via Nuova per Pisa to the junction": {"name": "^Viale Europa$", "bbox": [43.828, 10.485, 43.8359, 10.5]},
+  "Viale Europa, the junction to Teresa Mattei": {"name": "^Viale Europa$", "bbox": [43.8365, 10.485, 43.8405, 10.5]},
+  "SS12 radd., Via Nuova per Pisa": {"ref": "^SS12radd$"},
+  "SS439 west, Via Sarzanese and Viale Puccini": {"ref": "^SS439$", "bbox": [43.8, 10.4, 43.9, 10.497]},
+  "West Lucca, west of the Walls (no motorway)": {"bbox": [43.8, 10.42, 43.88, 10.497], "type": "primary|secondary|tertiary|unclassified|residential"}
+}

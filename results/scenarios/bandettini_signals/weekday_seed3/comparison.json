@@ -1,0 +1,291 @@
+{
+ "scenario": "bandettini_signals",
+ "day": "weekday",
+ "baseline": "scenarios/baseline/weekday_seed3",
+ "hours": [
+  0,
+  24
+ ],
+ "per_hour": {
+  "time_lost_vh": {
+   "baseline": [
+    4.1,
+    1.9,
+    2.8,
+    4.8,
+    19.4,
+    127.5,
+    380.5,
+    1042.6,
+    4177.8,
+    3519.9,
+    2062.8,
+    786.6,
+    404.1,
+    586.4,
+    550.5,
+    587.8,
+    1475.3,
+    2119.9,
+    2207.3,
+    916.5,
+    365.9,
+    259.7,
+    195.8,
+    120.5
+   ],
+   "scenario": [
+    4.2,
+    2.1,
+    2.5,
+    4.7,
+    17.8,
+    128.3,
+    378.3,
+    1025.0,
+    3694.4,
+    3256.0,
+    1711.1,
+    722.3,
+    384.4,
+    576.2,
+    519.6,
+    581.6,
+    1678.8,
+    2067.1,
+    1640.4,
+    920.4,
+    375.4,
+    262.4,
+    191.3,
+    125.4
+   ]
+  },
+  "veh_km": {
+   "baseline": [
+    6379.2,
+    6392.8,
+    8326.7,
+    10137.1,
+    17260.7,
+    59914.2,
+    124166.3,
+    200427.0,
+    267784.4,
+    230004.8,
+    190020.3,
+    143358.4,
+    129486.9,
+    158051.5,
+    150467.4,
+    161666.2,
+    232010.7,
+    236629.7,
+    218932.5,
+    166653.5,
+    109001.3,
+    79902.5,
+    56550.2,
+    35099.5
+   ],
+   "scenario": [
+    6355.1,
+    6397.7,
+    8329.1,
+    10099.8,
+    17444.5,
+    59768.7,
+    123969.3,
+    200386.8,
+    269387.5,
+    227647.1,
+    189261.8,
+    141920.9,
+    129508.7,
+    158452.5,
+    149614.3,
+    161180.8,
+    231367.8,
+    239162.9,
+    215666.7,
+    161807.7,
+    109692.5,
+    80053.4,
+    56539.1,
+    34959.6
+   ]
+  },
+  "vehicles_on_road": {
+   "baseline": [
+    66.4,
+    63.9,
+    83.7,
+    111.6,
+    259.1,
+    1089.5,
+    2425.3,
+    4410.2,
+    8819.3,
+    7452.6,
+    5307.6,
+    3175.1,
+    2575.6,
+    3290.4,
+    3089.8,
+    3279.0,
+    5434.9,
+    6073.2,
+    5900.0,
+    3718.0,
+    2193.5,
+    1593.1,
+    1137.7,
+    704.8
+   ],
+   "scenario": [
+    66.3,
+    64.1,
+    83.5,
+    111.0,
+    259.8,
+    1087.9,
+    2416.2,
+    4388.0,
+    8374.0,
+    7143.9,
+    4943.2,
+    3082.7,
+    2553.2,
+    3287.4,
+    3041.7,
+    3261.7,
+    5622.5,
+    6058.6,
+    5242.3,
+    3632.8,
+    2213.0,
+    1598.3,
+    1132.8,
+    706.6
+   ]
+  }
+ },
+ "roads": [
+  {
+   "edge": "-32605881",
+   "name": "Viale Europa",
+   "time_lost_change_vh": -99.1
+  },
+  {
+   "edge": "-320013565",
+   "name": "Viale Europa",
+   "time_lost_change_vh": -56.9
+  },
+  {
+   "edge": "180314399#0",
+   "name": "Via di Ronco",
+   "time_lost_change_vh": -55.7
+  },
+  {
+   "edge": "286750932#0",
+   "name": "Autostrada Firenze-Mare",
+   "time_lost_change_vh": -52.9
+  },
+  {
+   "edge": "156511557#0-AddedOffRampEdge",
+   "name": "Via delle Città Gemelle",
+   "time_lost_change_vh": -37.0
+  },
+  {
+   "edge": "europa_n_in",
+   "name": "Viale Europa",
+   "time_lost_change_vh": 36.7
+  },
+  {
+   "edge": "156395848#1",
+   "name": "Traversa V Via Teresa Bandettini",
+   "time_lost_change_vh": -34.0
+  },
+  {
+   "edge": "156363068#2",
+   "name": "Via di Mezzo II",
+   "time_lost_change_vh": 32.7
+  },
+  {
+   "edge": "156395878#0",
+   "name": "Via delle Tagliate",
+   "time_lost_change_vh": 32.3
+  },
+  {
+   "edge": "156066336",
+   "name": "",
+   "time_lost_change_vh": -31.7
+  },
+  {
+   "edge": "156511557#0",
+   "name": "Via delle Città Gemelle",
+   "time_lost_change_vh": -31.0
+  },
+  {
+   "edge": "156395870#0",
+   "name": "Via Frediano Francesconi",
+   "time_lost_change_vh": -29.1
+  },
+  {
+   "edge": "europa_s_in",
+   "name": "Viale Europa",
+   "time_lost_change_vh": 28.7
+  },
+  {
+   "edge": "-298404550",
+   "name": "Via delle Tagliate",
+   "time_lost_change_vh": -27.2
+  },
+  {
+   "edge": "-156615443#4",
+   "name": "Via delle Piagge",
+   "time_lost_change_vh": -27.0
+  }
+ ],
+ "areas": {},
+ "trips": {
+  "baseline": {
+   "end_s": 90000.0,
+   "trips": 339525,
+   "arrived": 339490,
+   "teleports": 4819,
+   "mean_duration_s": 810.72,
+   "mean_time_lost_s": 244.74,
+   "mean_route_km": 9.50383
+  },
+  "scenario": {
+   "end_s": 90000.0,
+   "trips": 339525,
+   "arrived": 339489,
+   "teleports": 3963,
+   "mean_duration_s": 789.28,
+   "mean_time_lost_s": 226.22,
+   "mean_route_km": 9.467690000000001
+  }
+ },
+ "runs": {
+  "baseline": {
+   "end_s": 90000.0,
+   "trips": 339525,
+   "arrived": 339490,
+   "teleports": 4819,
+   "mean_duration_s": 810.72,
+   "mean_time_lost_s": 244.74,
+   "mean_route_km": 9.50383
+  },
+  "scenario": {
+   "end_s": 90000.0,
+   "trips": 339525,
+   "arrived": 339489,
+   "teleports": 3963,
+   "mean_duration_s": 789.28,
+   "mean_time_lost_s": 226.22,
+   "mean_route_km": 9.467690000000001
+  }
+ }
+}

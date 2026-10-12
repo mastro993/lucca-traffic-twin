@@ -1,0 +1,33 @@
+<!-- The roads that led into the OSM flares lead into the new entries (Viale Europa's three lanes from the south into two),
+     both ring lanes may take an exit (the ring is not marked in lanes, so drivers on the inside also leave from it), and
+     no U-turn from an exit straight back into its entry across the splitter island. -->
+<connections>
+  <delete from="europa_s_exit" to="europa_s_entry"/>
+  <delete from="europa_n_exit" to="europa_n_entry"/>
+  <delete from="bandettini_e_exit" to="bandettini_e_entry"/>
+  <delete from="bandettini_w_exit" to="bandettini_w_entry"/>
+  <connection from="320013563#0" to="europa_s_entry" fromLane="0" toLane="0"/>
+  <connection from="320013563#0" to="europa_s_entry" fromLane="1" toLane="1"/>
+  <connection from="320013563#0" to="europa_s_entry" fromLane="2" toLane="1"/>
+  <connection from="-320013565" to="europa_n_entry" fromLane="0" toLane="0"/>
+  <connection from="-320013565" to="europa_n_entry" fromLane="1" toLane="1"/>
+  <connection from="1546263820#0" to="bandettini_e_entry" fromLane="0" toLane="0"/>
+  <connection from="-156395845" to="bandettini_e_entry" fromLane="0" toLane="0"/>
+  <connection from="-156395891#0" to="bandettini_w_entry" fromLane="0" toLane="0"/>
+  <connection from="ring_8" to="ring_1" fromLane="0" toLane="0"/>
+  <connection from="ring_8" to="ring_1" fromLane="1" toLane="1"/>
+  <connection from="ring_8" to="europa_s_exit" fromLane="0" toLane="0"/>
+  <connection from="ring_8" to="europa_s_exit" fromLane="1" toLane="0"/>
+  <connection from="ring_2" to="ring_3" fromLane="0" toLane="0"/>
+  <connection from="ring_2" to="ring_3" fromLane="1" toLane="1"/>
+  <connection from="ring_2" to="bandettini_e_exit" fromLane="0" toLane="0"/>
+  <connection from="ring_2" to="bandettini_e_exit" fromLane="1" toLane="0"/>
+  <connection from="ring_4" to="ring_5" fromLane="0" toLane="0"/>
+  <connection from="ring_4" to="ring_5" fromLane="1" toLane="1"/>
+  <connection from="ring_4" to="europa_n_exit" fromLane="0" toLane="0"/>
+  <connection from="ring_4" to="europa_n_exit" fromLane="1" toLane="0"/>
+  <connection from="ring_6" to="ring_7" fromLane="0" toLane="0"/>
+  <connection from="ring_6" to="ring_7" fromLane="1" toLane="1"/>
+  <connection from="ring_6" to="bandettini_w_exit" fromLane="0" toLane="0"/>
+  <connection from="ring_6" to="bandettini_w_exit" fromLane="1" toLane="0"/>
+</connections>

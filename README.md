@@ -199,10 +199,11 @@ A scenario changes the road network and is compared with a reference run of the 
 | File | Changes | Example |
 |---|---|---|
 | `*.tll.xml` | signal plans | `<tlLogic id="248886555" type="static" programID="0" offset="64">` with its `<phase>`s |
-| `*.nod.xml` | junction control | `<node id="…" type="traffic_light"/>`, `type="priority"` |
-| `*.edg.xml` | roads | `<edge id="…" numLanes="2" speed="8.33"/>`, `disallow="passenger"`, `<delete id="…"/>` |
+| `*.nod.xml` | junctions | `<node id="…" type="traffic_light"/>` (the network's standard 70 s plan unless a `*.tll.xml` gives one), `type="priority"`, new nodes with `x`, `y` |
+| `*.edg.xml` | roads | `<edge id="…" numLanes="2" speed="8.33"/>`, `disallow="passenger"`, `<delete id="…"/>`, new roads with `from`, `to`, `<roundabout nodes="…" edges="…"/>` |
 | `*.con.xml` | turning movements | `<connection from="…" to="…"/>`, `<delete from="…" to="…"/>` |
 | `<day>.trips.xml.gz` | demand (optional) | replaces `demand/<day>.trips.xml.gz` |
+| `areas.json` | areas to report (optional) | `{"Viale Europa": {"name": "^Viale Europa$", "bbox": [43.828, 10.485, 43.8405, 10.5]}}` |
 
 Vehicles choose their route when they depart and every 5 minutes, so traffic finds its own way through the changed network.
 
@@ -212,11 +213,20 @@ python3 scripts/12_scenario.py puccini_signals weekday            # build, simul
 END=36000 python3 scripts/12_scenario.py puccini_signals weekday  # until 10:00 only, compared over the same hours
 SEED=2 python3 scripts/12_scenario.py puccini_signals weekday     # another random seed (run the baseline with it too)
 COMPARE=1 python3 scripts/12_scenario.py puccini_signals weekday  # compare an existing run again
+BASE=other python3 scripts/12_scenario.py puccini_signals weekday # compare with the run of scenario `other` instead
+python3 scripts/tools/seed_summary.py puccini_signals weekday     # the comparisons of every seed run, side by side
 ```
 
-The comparison prints and writes to `comparison.json` the time lost, vehicle-km and vehicles on the road per hour, the
-trip statistics (full-day runs only) and the roads where time lost changed most. These totals include every road, also
-the boundary insertion queues the critical-point ranking leaves out.
+The comparison prints and writes to `comparison.json` (`comparison_vs_<other>.json` with `BASE`) the time lost,
+vehicle-km and vehicles on the road per hour, the trip statistics (full-day runs only) and the roads where time lost
+changed most. These totals include every road, also the boundary insertion queues the critical-point ranking leaves out.
+With an `areas.json`, the same totals are given for each area: a road belongs to an area when it meets all of the
+area's criteria, `"near": [lat, lon, metres]` (comes that close to the point), `"bbox": [south, west, north, east]` (its
+midpoint is inside) and regular expressions on its `"name"`, SUMO `"type"` (`highway.primary`, …) or the OSM `"ref"` of
+one of its ways (`"^SS12$"`; plain `SS12` also matches `SS12radd`). The edge data leaves out the inside of junctions,
+which matters when the scenario changes a junction's size (a roundabout's ring is mostly junction): judge a junction
+redesign on time lost rather than vehicle-km there, on the trip statistics, and on `scripts/tools/junction_times.py`,
+which times the vehicles through the junction from their routes (arms in the scenario's `junction.json`).
 
 **Compare like with like.** The reference is the scenario `baseline` (an empty folder) rather than the committed
 `results/<day>/`, and SUMO runs on a single thread. With two threads, as the committed baseline was run, two runs of the
@@ -230,6 +240,73 @@ moved by +1.9% and single hours by up to ±30% on roads kilometres away: one cha
 is why a single seed cannot settle a result.
 
 Before a full run, use `scripts/tools/route_volumes.py weekday` for a 3-minute free-flow check against the counts.
+
+#### Before and after: the Viale Europa / Via Teresa Bandettini roundabout
+
+On 31 July 2026 the signalised crossroads of Viale Europa (the SS12 radd. from Pisa, and the road from the A11 Lucca Est
+exit to the Walls) and Via Teresa Bandettini became a roundabout. The OSM extract, and so the baseline, already has the
+roundabout, so two scenarios rebuild the junction as it was and as it was built:
+
+| Scenario | Junction | Sources |
+|---|---|---|
+| `bandettini_signals` | the crossroads as mapped until 30 July 2026, with a 110 s fixed-time plan: northbound only (10 s), Viale Europa both ways (50 s), southbound with its left turn (30 s), Via Bandettini (20 s) | OSM history (signal node 1686445825); the Comune's traffic study ([PT 60-2024](https://allegatiatti.comune.lucca.it/Anno%202026/Rotatoria_Viale_Europa-PE/PDF/01_AMBITO%20GENERALE/), Aleph Progetti), Table 4.1 and Figures 4.8–4.11 |
+| `bandettini_roundabout` | the roundabout as designed: a two-lane ring 26 m across at its centreline (30 km/h), two entry lanes from Viale Europa, one from Via Bandettini, one exit lane on every arm | the executive project PT 60-2024 (ellipse 44 × 35 m, ring 8.5–9.5 m wide); the project engineer: "due corsie d'ingresso … e solo una di uscita" |
+
+The baseline's own roundabout is not used for the comparison. OSM gives its entries and exits the old crossroads' 3–4
+lanes, draws the west flare the wrong way round and packs the ring into links shorter than a car, and in SUMO it locks
+up in the peaks: the old signals beat it by 7–15% in the network's daily time lost (three seeds, weekday).
+
+```bash
+python3 scripts/12_scenario.py bandettini_signals weekday                              # before (and against the baseline)
+BASE=bandettini_signals python3 scripts/12_scenario.py bandettini_roundabout weekday   # after, compared with before
+SEED=2 python3 scripts/12_scenario.py bandettini_signals weekday                       # ... repeat both with SEED=2 and 3
+python3 scripts/tools/seed_summary.py bandettini_roundabout weekday bandettini_signals
+HOURS=8,17 python3 scripts/tools/junction_times.py bandettini_roundabout weekday bandettini_signals
+```
+
+**Results** (roundabout against signals, change in daily time lost, mean of three seeds and their range; `areas.json`
+holds the areas; the runs' `stats.xml` and comparisons are in `results/scenarios/`, their edge data and routes are not
+committed):
+
+| | Weekday | Saturday |
+|---|---:|---:|
+| Whole network (trip statistics) | −3.6% (−7.4 to −0.5) | −7.7% (−12.3 to −1.4) |
+| The junction: 200–400 m before it to just past it, inside included (`junction_times.py`) | −5.4% (−11.7 to +0.5) | −17.4% (−28.1 to −6.4) |
+| Teresa Mattei roundabout, Viale Carducci / Viale Europa (100 m) | −4.1% (−14.0 to +2.2) | −8.6% (−12.2 to −2.5) |
+| Viale Europa (SS12 radd.), Via Nuova per Pisa to the junction | −6.1% (−7.3 to −4.7) | −9.5% (−16.5 to −4.2) |
+| Viale Europa, the junction to Teresa Mattei (300 m) | +25.4% (+18.9 to +32.5) | +15.5% (+4.8 to +28.4) |
+| SS12 radd., Via Nuova per Pisa | +0.6% (−7.4 to +9.1) | −5.6% (−11.7 to +1.2) |
+| SS439 west, Via Sarzanese and Viale Puccini | −3.2% (−10.7 to +3.0) | +1.3% (−0.6 to +4.9) |
+| West Lucca, west of the Walls, without the motorway | −8.8% (−17.8 to −2.4) | −16.2% (−25.4 to −2.3) |
+
+- **At the junction** the roundabout trades Viale Europa's time for Via Bandettini's. With the 14 s of green the old
+  plan gave it, Bandettini traffic took 10–13 minutes from 200–400 m out to past the junction in the weekday peaks; with
+  the roundabout its two arms carry 36–75% more vehicles a day, in 37–54% less time. Viale Europa, which had 60–80 s of
+  the 110 s cycle, now gives way to them: in the weekday peaks its approaches are slower (from the south at 08:00, 270 s
+  to 396 s; from the north at 17:00, 56 s to 112 s) and pass 10–20% fewer vehicles an hour. Over a weekday the
+  junction's total time falls 5%; on Saturday, with no sharp peaks, 17%.
+- **Beyond the junction** one stretch loses time in every seed: the 300 m of Viale Europa between the junction and the
+  Teresa Mattei roundabout, in both directions (about +40 veh-h on a weekday, +20 on Saturday, as much as Viale Europa
+  saves south of the junction). Northbound traffic now reaches Teresa Mattei in a steady stream instead of in platoons
+  from the lights, and southbound traffic queues to enter the roundabout. The Teresa Mattei roundabout itself, Via Nuova
+  per Pisa and SS439 move within the spread of the seeds, mostly down, and the west of Lucca as a whole loses 9–16%
+  less time. Among single roads, Via delle Tagliate Seconda near Porta Sant'Anna also loses more in every seed (+20%),
+  but with three seeds one road in four agrees on the sign by chance, so single roads far from the junction are weak
+  evidence.
+- **Where traffic moves:** about 1,500 vehicles a day stop crossing on Viale Europa (−5%) and Via Bandettini takes about
+  1,000 more. Via delle Tagliate, which feeds the west arm, carries 17% more vehicle-km and Viale Puccini 1–3% more, with
+  no more time lost on either; the nearby side streets Via Ungaretti (−22%) and Via di Sant'Anna (−9%) carry less.
+- **Calibration:** against the Comune's radar counts (January 2025, signals still in place) the "before" run carries
+  1.09× and 1.29× the traffic on Viale Europa south of the junction, 1.15× on the overpass, 0.78–1.00× on Viale Carducci
+  and 0.65–0.72× on Via Bandettini.
+
+Limits: pedestrians are not simulated, and at the roundabout they cross on zebras at every entry and exit, which would
+slow it in reality; the demand is the same in both runs (no traffic attracted or put off by the change, no change of
+departure time); the old plan is the one the traffic study recorded on site in January 2025, and it may have run other
+programmes at other times of day. The "before" run's waits on Via Bandettini are longer than the study's own model found
+(level of service F, i.e. over 80 s of delay), so the gain there may be overstated. The edge data leaves out the inside of
+the roundabout, so the West Lucca figures count about 60 veh-h a day of waiting at the old stop lines that, with the
+roundabout, partly moves onto the ring; the junction row, from the vehicle routes, counts it.
 
 ### Viewer
 The viewer (`src/`, `index.html`, `package.json` at the repository root) is a [Vite](https://vite.dev) + React + TypeScript app (pnpm), rendering with [deck.gl](https://deck.gl) 8.9.

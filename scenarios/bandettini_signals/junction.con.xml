@@ -1,0 +1,21 @@
+<!-- Turn lanes left | through | through and right on both Viale Europa approaches (SUMO lane 0 is the rightmost one),
+     and the roads that led into the roundabout's flares now lead into the crossroads' approaches. -->
+<connections>
+  <connection from="europa_s_in" to="bandettini_w_out" fromLane="2" toLane="0"/>
+  <connection from="europa_s_in" to="europa_n_out" fromLane="1" toLane="1"/>
+  <connection from="europa_s_in" to="europa_n_out" fromLane="0" toLane="0"/>
+  <connection from="europa_s_in" to="bandettini_e_out" fromLane="0" toLane="0"/>
+  <connection from="europa_n_in" to="bandettini_e_out" fromLane="2" toLane="0"/>
+  <connection from="europa_n_in" to="europa_s_out" fromLane="1" toLane="1"/>
+  <connection from="europa_n_in" to="europa_s_out" fromLane="0" toLane="0"/>
+  <connection from="europa_n_in" to="bandettini_w_out" fromLane="0" toLane="0"/>
+  <connection from="320013563#0" to="europa_s_in" fromLane="0" toLane="0"/>
+  <connection from="320013563#0" to="europa_s_in" fromLane="1" toLane="1"/>
+  <connection from="320013563#0" to="europa_s_in" fromLane="2" toLane="2"/>
+  <connection from="-320013565" to="europa_n_in" fromLane="0" toLane="0"/>
+  <connection from="-320013565" to="europa_n_in" fromLane="1" toLane="1"/>
+  <connection from="-320013565" to="europa_n_in" fromLane="1" toLane="2"/>
+  <connection from="1546263820#0" to="bandettini_e_in" fromLane="0" toLane="0"/>
+  <connection from="-156395845" to="bandettini_e_in" fromLane="0" toLane="0"/>
+  <connection from="-156395891#0" to="bandettini_w_in" fromLane="0" toLane="0"/>
+</connections>

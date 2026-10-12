@@ -1,0 +1,40 @@
+<!-- The OSM ring (way 1546266876) and its flares are replaced by the ring of roundabout.nod.xml (counterclockwise from
+     the south exit, 30 km/h) and new flares to the arms: two entry lanes from Viale Europa, one from Via Teresa
+     Bandettini, one exit lane on every arm. OSM also draws the Bandettini west flares the wrong way round (way
+     1546263824: entering on the north side, leaving on the south side, so the two streams cross); here every arm
+     enters on its right. -->
+<edges>
+  <delete id="1546266876#0"/>
+  <delete id="1546266876#1"/>
+  <delete id="1546266876#2"/>
+  <delete id="1546266876#3"/>
+  <delete id="1546266876#4"/>
+  <delete id="1546266876#5"/>
+  <delete id="1546266876#6"/>
+  <delete id="1546266876#7"/>
+  <delete id="1546263821#0"/>
+  <delete id="1546263821#1"/>
+  <delete id="1546263822#0"/>
+  <delete id="1546263822#1"/>
+  <delete id="1546263823#0"/>
+  <delete id="1546263823#1"/>
+  <delete id="1546263824#0"/>
+  <delete id="1546263824#1"/>
+  <edge id="ring_1" from="rb_s_out" to="rb_s_in" type="highway.primary" priority="12" numLanes="2" speed="8.33" spreadType="center" shape="9274.21,6326.61 9275.94,6326.07 9277.73,6325.76 9279.54,6325.71 9281.34,6325.91 9283.10,6326.36"/>
+  <edge id="ring_2" from="rb_s_in" to="rb_e_out" type="highway.primary" priority="12" numLanes="2" speed="8.33" spreadType="center" shape="9283.10,6326.36 9284.91,6327.12 9286.59,6328.15 9288.09,6329.41 9289.39,6330.89 9290.45,6332.54"/>
+  <edge id="ring_3" from="rb_e_out" to="rb_e_in" type="highway.primary" priority="12" numLanes="2" speed="8.33" spreadType="center" shape="9290.45,6332.54 9291.20,6334.20 9291.70,6335.94 9291.96,6337.73 9291.97,6339.55 9291.73,6341.34"/>
+  <edge id="ring_4" from="rb_e_in" to="rb_n_out" type="highway.primary" priority="12" numLanes="2" speed="8.33" spreadType="center" shape="9291.73,6341.34 9291.21,6343.16 9290.43,6344.89 9289.41,6346.48 9288.17,6347.91 9286.74,6349.15 9285.14,6350.16"/>
+  <edge id="ring_5" from="rb_n_out" to="rb_n_in" type="highway.primary" priority="12" numLanes="2" speed="8.33" spreadType="center" shape="9285.14,6350.16 9283.48,6350.90 9281.74,6351.41 9279.95,6351.67 9278.13,6351.67 9276.34,6351.42"/>
+  <edge id="ring_6" from="rb_n_in" to="rb_w_out" type="highway.primary" priority="12" numLanes="2" speed="8.33" spreadType="center" shape="9276.34,6351.42 9274.50,6350.90 9272.76,6350.10 9271.15,6349.06 9269.71,6347.80 9268.48,6346.33 9267.47,6344.70 9266.71,6342.95 9266.22,6341.10"/>
+  <edge id="ring_7" from="rb_w_out" to="rb_w_in" type="highway.primary" priority="12" numLanes="2" speed="8.33" spreadType="center" shape="9266.22,6341.10 9266.01,6339.29 9266.06,6337.48 9266.35,6335.69 9266.89,6333.96 9267.67,6332.32"/>
+  <edge id="ring_8" from="rb_w_in" to="rb_s_out" type="highway.primary" priority="12" numLanes="2" speed="8.33" spreadType="center" shape="9267.67,6332.32 9268.92,6330.50 9270.45,6328.91 9272.23,6327.60 9274.21,6326.61"/>
+  <edge id="europa_s_entry" from="14063722828" to="rb_s_in" name="Viale Europa" type="highway.primary" priority="12" numLanes="2" speed="13.89"/>
+  <edge id="europa_s_exit" from="rb_s_out" to="14063722828" name="Viale Europa" type="highway.primary" priority="12" numLanes="1" speed="13.89"/>
+  <edge id="europa_n_entry" from="14063722827" to="rb_n_in" name="Viale Europa" type="highway.primary" priority="12" numLanes="2" speed="13.89"/>
+  <edge id="europa_n_exit" from="rb_n_out" to="14063722827" name="Viale Europa" type="highway.primary" priority="12" numLanes="1" speed="13.89"/>
+  <edge id="bandettini_e_entry" from="cluster_11896387865_1686445844" to="rb_e_in" name="Via Teresa Bandettini" type="highway.residential" priority="3" numLanes="1" speed="13.89"/>
+  <edge id="bandettini_e_exit" from="rb_e_out" to="cluster_11896387865_1686445844" name="Via Teresa Bandettini" type="highway.residential" priority="3" numLanes="1" speed="13.89"/>
+  <edge id="bandettini_w_entry" from="11897554423" to="rb_w_in" name="Via Teresa Bandettini" type="highway.residential" priority="3" numLanes="1" speed="13.89"/>
+  <edge id="bandettini_w_exit" from="rb_w_out" to="11897554423" name="Via Teresa Bandettini" type="highway.residential" priority="3" numLanes="1" speed="13.89"/>
+  <roundabout nodes="rb_s_out rb_s_in rb_e_out rb_e_in rb_n_out rb_n_in rb_w_out rb_w_in" edges="ring_1 ring_2 ring_3 ring_4 ring_5 ring_6 ring_7 ring_8"/>
+</edges>

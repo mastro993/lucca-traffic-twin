@@ -1,0 +1,15 @@
+<!-- The roundabout as built (opened 31 July 2026), drawn again from the Comune's design (executive project PT 60-2024):
+     an ellipse 44 x 35 m with a ring 8.5-9.5 m wide, two entry lanes from Viale Europa and one exit lane on every arm.
+     OSM draws a ring 9 m in radius with the old crossroads' 3-4 lanes on its entries and exits. Here: a circular
+     two-lane ring whose centreline (13 m radius, the design's minor semi-axis less half the ring) is centred where OSM
+     draws it, with each arm's entry and exit 20 degrees either side of the arm. -->
+<nodes>
+  <node id="rb_s_out" x="9274.21" y="6326.61" type="priority"/>
+  <node id="rb_s_in" x="9283.10" y="6326.36" type="priority"/>
+  <node id="rb_e_out" x="9290.45" y="6332.54" type="priority"/>
+  <node id="rb_e_in" x="9291.73" y="6341.34" type="priority"/>
+  <node id="rb_n_out" x="9285.14" y="6350.16" type="priority"/>
+  <node id="rb_n_in" x="9276.34" y="6351.42" type="priority"/>
+  <node id="rb_w_out" x="9266.22" y="6341.10" type="priority"/>
+  <node id="rb_w_in" x="9267.67" y="6332.32" type="priority"/>
+</nodes>
