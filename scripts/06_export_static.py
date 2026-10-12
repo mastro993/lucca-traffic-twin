@@ -146,14 +146,10 @@ nidx = {n: i for i, n in enumerate(names)}
 epos, est, elanes, ecls, ename, elen, espeed, eztl = [], [], [], [], [], [], [], []
 edge_ids = []
 for e in edges:
-    shp = e.getShape()
-    # offset the centreline to the right-hand side so the two directions render side by side
-    has_rev = any(o.getToNode() == e.getFromNode() for o in e.getToNode().getOutgoing())
-    if has_rev and len(shp) >= 2:
-        try:
-            oc = LineString(shp).offset_curve(-(e.getLaneNumber() * 3.2 / 2 + 0.4), join_style=2, mitre_limit=3)
-            if oc.geom_type == 'LineString' and len(oc.coords) >= 2: shp = list(oc.coords)
-        except Exception: pass
+    # draw the road along the middle of its lanes: the two directions sit side by side, and vehicles and signal heads
+    # line up with the lanes
+    l0, l1 = e.getLanes()[0].getShape(), e.getLanes()[-1].getShape()
+    shp = [((a[0] + b[0]) / 2, (a[1] + b[1]) / 2) for a, b in zip(l0, l1)] if len(l0) == len(l1) else e.getShape()
     est.append(len(epos) // 2)
     for x, y in shp: epos += [x - X0, y - Y0]
     elanes.append(e.getLaneNumber()); ecls.append(ROADCLS.get(e.getType(), 7)); ename.append(nidx[e.getName().replace('&apos;', "'")])
@@ -164,6 +160,21 @@ B.add('road_pos', np.array(epos, np.float32)); B.add('road_start', np.array(est,
 B.add('road_lanes', np.array(elanes, np.uint8)); B.add('road_cls', np.array(ecls, np.uint8)); B.add('road_name', np.array(ename, np.uint16))
 B.add('road_len', np.array(elen, np.float32)); B.add('road_speed', np.array(espeed, np.float32)); B.add('road_ztl', np.array(eztl, np.uint8))
 meta['road_names'] = names; meta['roads'] = len(edges)
+
+# ---------------- turning movements: for every pair of consecutive roads, the lanes (bit 0 = rightmost) a vehicle can
+# leave the first one from, so the trip replay puts vehicles in a lane that leads where they go next
+VEH = ('passenger', 'custom1', 'delivery', 'truck')
+eidx = {e: i for i, e in enumerate(edge_ids)}
+moves = collections.defaultdict(int)
+for e in edges:
+    for lane in e.getLanes():
+        if not any(lane.allows(v) for v in VEH): continue
+        for c in lane.getOutgoing():
+            moves[eidx[e.getID()], eidx[c.getTo().getID()]] |= 1 << min(7, lane.getIndex())
+mv = sorted(moves.items())
+B.add('move_from', np.array([a for (a, _), _ in mv], np.uint16)); B.add('move_to', np.array([b for (_, b), _ in mv], np.uint16))
+B.add('move_lanes', np.array([m for _, m in mv], np.uint8))
+print('turning movements', len(mv))
 
 # ---------------- traffic signals: each fixed-time program, one head over every controlled lane at its stop line, and
 # one pole per approach at the right kerb with an arm reaching over its lanes. Headings are degrees clockwise from north.

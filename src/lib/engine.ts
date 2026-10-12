@@ -8,13 +8,15 @@ import { fmt, hh, hhmm, spotName } from './format'
 import { buildLayers, groundData, sceneData } from './layers'
 import { cycleOf, LIGHT_NAME, signalAt, type Head } from './signals'
 import { initialState, patch, viewer, type LayerKey, type Tip } from './store'
-import { keepTrips, locate, roadPoint, trips, VNAME, VSCALE, type Routes, type Spot, type Trips } from './trips'
+import { edgeAt, locate, queue, roadPoint, speedFactors, VSCALE, type Routes, type Spot } from './replay'
+import { keepTrips, trips, VNAME, type Trips } from './trips'
 
 export interface Init { day: Day; t: number; z?: number; still: boolean }
 type ViewState = { longitude: number; latitude: number; zoom: number; pitch: number; bearing: number; [k: string]: unknown }
 type VehView = { length: number; attributes?: Record<string, unknown> }
 interface Follow extends Routes {
-  type: number; km: Float32Array; d0: number; total: number; k: number; since: number; from: [number, number, number] | null
+  src: Trips | null; idx: number   // the same trip in the hour file on screen, so the camera stays on the drawn vehicle
+  km: Float32Array; d0: number; total: number; k: number; since: number; from: [number, number, number] | null
   paths: { p: Float32Array; done: boolean }[] | null; ends: { x: number; y: number; end: number }[]
   card: { label: string; when: string; progress: number; meta: string }
 }
@@ -127,11 +129,17 @@ export class Engine {
     const { day, hour, layers } = this.state, c = trips(day, hour) ?? null, roads = this.scene.roads
     this.vehSet = c; this.live.n = 0; this.live.kmh = 0
     if (!c) { this.vehView = { length: 0 }; return }
-    const t = this.t, draw = layers.veh, m = c.n, LP = this.LP; let ksum = 0
+    if (!c.ready) { c.vf = speedFactors(roads, c, c.n); c.ready = true }
+    const t = this.t, draw = layers.veh, m = c.n, LP = this.LP, act = c.act; let ksum = 0, na = 0
     const stopCol = C.cong[4], carCol = C.car, trkCol = [214, 122, 52, 255], ztlCol = [70, 150, 230, 255]
     // one slot per trip, so a picked index is the trip index in any frame; trips not on the road are parked far off-screen
     for (let i = 0; i < m; i++) {
       if (t < c.dep[i] || t > c.arr[i]) { if (draw) { c.pos[3 * i] = 1e8; c.pos[3 * i + 1] = 1e8 } continue }
+      edgeAt(c, i, t); act[na++] = i
+    }
+    queue(roads, c, t, act, na, c.key)
+    for (let j = 0; j < na; j++) {
+      const i = act[j]
       locate(roads, c, i, t, LP); this.live.n++; ksum += LP.kmh
       if (!draw) continue
       c.pos[3 * i] = LP.x; c.pos[3 * i + 1] = LP.y; c.pos[3 * i + 2] = 0.3
@@ -161,8 +169,10 @@ export class Engine {
     for (let k = 0; k < n; k++) km[k + 1] = km[k] + roads.len[edge[k]] / 1000
     const d0 = c.dpos[i] / 255 * roads.len[edge[0]] / 1000, total = km[n - 1] + c.apos[i] / 255 * roads.len[edge[n - 1]] / 1000 - d0
     const vs = this.vs, from = !this.rm ? [vs.longitude, vs.latitude, vs.zoom] as [number, number, number] : null
-    const f: Follow = { type: c.type[i], dep: c.dep.slice(i, i + 1), arr: c.arr.slice(i, i + 1), offs: Uint32Array.of(0, n), edge, exit: c.exit.slice(o, o + n),
-      dpos: c.dpos.slice(i, i + 1), apos: c.apos.slice(i, i + 1), cur: new Uint16Array(1), km, d0, total, k: -1, paths: null, since: performance.now(), from,
+    const f: Follow = { src: c, idx: i, type: c.type.slice(i, i + 1), dep: c.dep.slice(i, i + 1), arr: c.arr.slice(i, i + 1), offs: Uint32Array.of(0, n), edge,
+      exit: c.exit.slice(o, o + n), dpos: c.dpos.slice(i, i + 1), apos: c.apos.slice(i, i + 1), cur: new Uint16Array(1), vf: c.vf.slice(i, i + 1),
+      cap: Float32Array.of(Infinity), adv: new Float32Array(1),
+      lk: new Uint16Array(1), ln: new Uint8Array(1), tau: new Float32Array(1), wait: new Uint8Array(1), km, d0, total, k: -1, paths: null, since: performance.now(), from,
       ends: [{ ...roadPoint(roads, edge[0], c.dpos[i] / 255 * roads.plen[edge[0]]), end: 0 }, { ...roadPoint(roads, edge[n - 1], c.apos[i] / 255 * roads.plen[edge[n - 1]]), end: 1 }],
       card: { label: `Following a ${VNAME[c.type[i]] || 'car'}`, when: `${hhmm(c.dep[i])} → ${hhmm(c.arr[i])}`, progress: 0, meta: '' } }
     this.follow = f
@@ -182,7 +192,10 @@ export class Engine {
     const f = this.follow; if (!f) return
     const roads = this.scene.roads, FP = this.FP
     const tc = f.arr[0] > 86400 && this.t < f.arr[0] - 86400 ? this.t + 86400 : this.t   // a trip running past midnight goes on after the clock wraps
-    locate(roads, f, 0, Math.min(Math.max(tc, f.dep[0]), f.arr[0]), FP)
+    const v = this.vehSet, tf = Math.min(Math.max(tc, f.dep[0]), f.arr[0])
+    if (f.src !== v) { f.src = v; f.idx = v ? findTrip(v, f) : -1 }
+    if (f.src && f.idx >= 0 && tc === this.t) locate(roads, f.src, f.idx, tf, FP)
+    else locate(roads, f, 0, tf, FP)   // not in the hour file on screen (after midnight): no queue ahead of it
     if (FP.k !== f.k) { f.k = FP.k; f.paths = [{ p: this.routePath(f, 0, f.k + 1), done: true }, { p: this.routePath(f, f.k, f.offs[1]), done: false }] }
     // ease the camera onto the vehicle over 1.2 s, then stay locked on it; zoom, tilt and rotation stay with the user
     // metres in the scene frame -> lon/lat, with the same projection deck.gl uses for METER_OFFSETS
@@ -233,4 +246,12 @@ export class Engine {
     if ((id === 'hot' || id === 'hot-rank') && info.object) this.selectSpot((info.object as Hotspot).id, false)
     else if (id.startsWith('veh') && v && info.index >= 0 && info.index < v.n) this.startFollow(v, info.index)
   }
+}
+
+// trip index of the followed vehicle in another hour file, -1 if it is not there
+function findTrip(c: Trips, f: Follow) {
+  const n = f.offs[1]
+  for (let i = 0; i < c.n; i++)
+    if (c.dep[i] === f.dep[0] && c.offs[i + 1] - c.offs[i] === n && c.edge[c.offs[i]] === f.edge[0] && c.arr[i] === f.arr[0]) return i
+  return -1
 }

@@ -1,13 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { Roads } from './data'
 import { validateSearch } from './search'
-import { locate, parseTrips } from './trips'
-
-// two straight 100 m roads: 0 runs east from (0,0), 1 runs north from (100,0)
-const roads = {
-  pos: Float32Array.of(0, 0, 100, 0, 100, 0, 100, 100), start: Uint32Array.of(0, 2, 4),
-  cum: Float32Array.of(0, 100, 0, 100), plen: Float32Array.of(100, 100), len: Float32Array.of(100, 100),
-} as unknown as Roads
+import { parseTrips } from './trips'
 
 // one LTR1 vehicle: departs at 1000 s from the start of road 0, exits it at 1010 s, arrives at 1030 s at the middle of road 1
 function ltr1() {
@@ -25,13 +18,7 @@ describe('trip replay', () => {
   it('decodes exit and arrival times', () => {
     expect([...c.exit]).toEqual([1010, 1030])
     expect(c.arr[0]).toBe(1030)
-  })
-  it('moves at constant speed along each edge', () => {
-    const a = locate(roads, c, 0, 1005)
-    expect([a.x, a.y, a.e]).toEqual([50, 0, 0])
-    expect(a.kmh).toBeCloseTo(36)                                          // 100 m in 10 s
-    const b = locate(roads, c, 0, 1020)
-    expect(b.e).toBe(1); expect(b.x).toBe(100); expect(b.y).toBeCloseTo(25.1, 1)
+    expect([...c.edge, c.apos[0]]).toEqual([0, 1, 128])
   })
   it('rejects other files', () => expect(() => parseTrips(new ArrayBuffer(16))).toThrow('not LTR1'))
 })

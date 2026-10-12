@@ -1,0 +1,15 @@
+<!-- Example scenario: the Viale Puccini / Via Catalani / Via Sant'Anna / Via Pisana signals (critical point 7) on a 90 s
+     cycle instead of 70 s, with the extra 20 s split between the two main green stages. Baseline plan: network/lucca.net.xml.gz.
+     Run: python3 scripts/12_scenario.py puccini_signals weekday -->
+<tlLogics>
+  <tlLogic id="248886555" type="static" programID="0" offset="64">
+    <phase duration="34" state="rrGGgrrGg"/>   <!-- Catalani and Puccini -->
+    <phase duration="4" state="rryygrryg"/>
+    <phase duration="6" state="rrrrGrrrG"/>    <!-- their left turns -->
+    <phase duration="4" state="rrrryrrry"/>
+    <phase duration="2" state="rrrrrrrrr"/>
+    <phase duration="34" state="GGrrrGgrr"/>   <!-- Sant'Anna and Pisana -->
+    <phase duration="4" state="yyrrryyrr"/>
+    <phase duration="2" state="rrrrrrrrr"/>
+  </tlLogic>
+</tlLogics>
