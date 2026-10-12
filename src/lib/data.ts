@@ -30,6 +30,7 @@ export interface Roads {
   minor: number[]; major: number[]   // road indices, drawn in class order
   cum: Float32Array                  // distance along its road at every vertex
   plen: Float32Array                 // drawn length of each road
+  moves: Map<number, number>         // from * 65536 + to road -> lanes of the first road leading to the second (bit 0 = rightmost)
 }
 export interface Shapes { length: number; startIndices: TypedArray; pos: TypedArray }
 export interface Scene {
@@ -64,8 +65,10 @@ async function loadScene(): Promise<Scene> {
     for (let k = start[e] + 1; k < start[e + 1]; k++) { s += Math.hypot(pos[2 * k] - pos[2 * k - 2], pos[2 * k + 1] - pos[2 * k - 1]); cum[k] = s }
     plen[e] = s
   }
+  const mf = v('move_from'), mt = v('move_to'), ml = v('move_lanes'), moves = new Map<number, number>()
+  for (let k = 0; k < mf.length; k++) moves.set(mf[k] * 65536 + mt[k], ml[k])
   const roads: Roads = { n, pos, start, lanes, cls, name: v('road_name'), len: v('road_len'), speed: v('road_speed'), ztl: v('road_ztl'),
-    minor: order.filter(i => cls[i] >= 5), major: order.filter(i => cls[i] < 5), cum, plen }
+    minor: order.filter(i => cls[i] >= 5), major: order.filter(i => cls[i] < 5), cum, plen, moves }
   // polygon start arrays carry a closing entry deck.gl must not see; path start arrays are passed whole
   const polys = (k: string) => { const s = v(`${k}_start`); return { length: s.length - 1, startIndices: s.subarray(0, s.length - 1), pos: v(`${k}_pos`) } }
   const paths = (k: string) => { const s = v(`${k}_start`); return { length: s.length - 1, startIndices: s, pos: v(`${k}_pos`) } }

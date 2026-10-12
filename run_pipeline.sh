@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Full pipeline, from raw data to the web viewer. Steps 1-2 need internet access; the downloaded data is already in data/osm.
-# A full 24 h run (step 7) takes about 70-90 minutes per day type on 2 CPU cores.
+# A full 24 h run (step 7) takes about an hour per day type on one CPU core; the two day types run in parallel.
 set -euo pipefail
 cd "$(dirname "$0")"
 S=scripts
