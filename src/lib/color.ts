@@ -13,6 +13,7 @@ const tokens = (g: (k: string) => RGBA) => ({
   bg: g('--bg'), ground: g('--scene-ground'), farm: g('--scene-farm'), green: g('--scene-green'), wood: g('--scene-wood'), urban: g('--scene-urban'),
   ind: g('--scene-ind'), civic: g('--scene-civic'), water: g('--scene-water'), bld: g('--scene-bld'), road: g('--scene-road'), rail: g('--scene-rail'),
   wall: g('--scene-wall'), car: g('--scene-car'), bldA: [...g('--scene-bld').slice(0, 3), 240] as RGBA, label: g('--scene-label'), halo: g('--scene-halo'),
+  poi: { edu: g('--poi-edu'), health: g('--poi-health'), shop: g('--poi-shop'), sport: g('--poi-sport'), work: g('--poi-work'), civic: g('--poi-civic') },
   accent: g('--accent'), cong: ['--c-free', '--c-ok', '--c-busy', '--c-slow', '--c-jam', '--c-stop'].map(g), vol: ['--v-1', '--v-2', '--v-3', '--v-4'].map(g),
 })
 export const C = {} as ReturnType<typeof tokens>

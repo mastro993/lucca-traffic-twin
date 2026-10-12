@@ -4,7 +4,7 @@ import { Store } from '@tanstack/react-store'
 import type { Mode } from './color'
 import type { Day, Run } from './data'
 
-export type LayerKey = 'veh' | 'tls' | 'bld' | 'hot' | 'lbl'
+export type LayerKey = 'veh' | 'tls' | 'bld' | 'hot' | 'lbl' | 'poi'
 export interface FollowCard { label: string; when: string; progress: number; meta: string }
 export interface Tip { x: number; y: number; title: string; ztl?: boolean; lines: string[]; note?: string }
 
@@ -17,8 +17,8 @@ export interface ViewerState {
 }
 
 export const initialState = (day: Day, run: Run, t: number): ViewerState => ({
-  day, run, hour: Math.floor(t / 3600), t, mode: 'speed', playing: false, mult: 60, sel: null,
-  layers: { veh: true, tls: true, bld: true, hot: true, lbl: true },
+  day, run, hour: Math.floor(t / 3600), t, mode: 'speed', playing: false, mult: 10, sel: null,
+  layers: { veh: true, tls: true, bld: true, hot: true, lbl: true, poi: false },
   kpi: { veh: 0, kmh: 0, delay: 0, cong: 0 }, follow: null, tip: null, themeRev: 0,
 })
 
