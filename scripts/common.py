@@ -14,6 +14,7 @@ BUILD.mkdir(exist_ok=True)
 
 NET = NETDIR / 'lucca.net.xml.gz'  # final SUMO network
 OSM_ROADS = OSM / 'lucca_roads.osm.gz'
+OSM_POI = OSM / 'lucca_poi.json.gz'   # places that draw crowds, with their outlines (Overpass JSON)
 OMT_TILES = OSM / 'lucca_omt_z14.bin'
 OMT_GEO = BUILD / 'omt_geo.pkl'
 ZONES = BUILD / 'zones.pkl'

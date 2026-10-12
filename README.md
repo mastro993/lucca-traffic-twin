@@ -26,6 +26,7 @@ individually.
 | **Vehicles** | Every simulated trip, replayed from departure to arrival along the route SUMO chose, at the times each vehicle entered and left every road. On each road a vehicle drives in a lane that leads to its next road, at its own free speed, and waits in the queue at the stop line until the second SUMO let it go, so vehicles stop at red lights and queue behind each other. Dark (light theme) or white (dark theme) = cars, orange = vans and lorries, blue = ZTL permit holders, red = crawling (under 5 km/h). **Click a vehicle to follow it**: the camera tracks it, its route is drawn, and a card shows departure, arrival, distance and speed. |
 | **Traffic lights** | The 22 signals in the network (23 in the Before run), running the fixed-time plans SUMO simulated. Zoomed in, each approach has a pole with an arm over its lanes and a head per lane whose red, amber or green lamp is lit (heads are drawn at twice their real size); zoomed out, each head is a coloured dot. Hover a light for its state, the seconds until it changes and the cycle length. |
 | **Critical points** | The 12 junction clusters with the most daily delay. Column height = delay at the current time; click one to fly to it at its peak hour. |
+| **Points of interest** | Off by default; tick *Points of interest* in the **Layers** box on the right (the pin button pulls it out and pushes it back; closed at first on phones) to show the places that draw crowds, as dots coloured by kind: schools, hospitals and clinics, big stores and markets, sports grounds, factories and industrial sites (5000 m² or more), stations, town halls, courts, cinemas and theatres. Their names appear when zoomed in to street level; hover a dot for its name and kind. They come from OpenStreetMap, so their coverage is OSM's: the demand model does not use them. |
 | **24-hour strip** | Network-wide delay per hour (bars = selected day and run; dashed = the other day, or in Before and After the other of the two) with the clock's playhead. Drag to scrub through the day; **Play** runs the clock. |
 | **Panel** | Vehicles on the road and their average speed right now (counted from the replay), delay and km of congested road (blended hourly figures), plus the method, the calibration table and the sources. |
 | **Before and after** | The switch under the day toggle shows the baseline or one of two scenario runs: **Before**, the Viale Europa / Via Teresa Bandettini junction as the signalised crossroads it was until 30 July 2026, and **After**, the roundabout that replaced it (see [Before and after](#before-and-after-the-viale-europa--via-teresa-bandettini-roundabout)). Roads, signals, vehicles, critical points and figures all switch; the clock and the camera stay. |
@@ -144,6 +145,7 @@ Weekday daily traffic, both directions:
 ```
 data/
   osm/lucca_roads.osm.gz      OSM roads, rail, walls, parking (Overpass, 11 Oct 2026)
+  osm/lucca_poi.json.gz       OSM points of interest with their outlines (Overpass, 12 Oct 2026)
   osm/lucca_omt_z14.bin       OpenMapTiles z14 tiles: buildings with heights, land cover, water (OpenFreeMap)
   counts/counts.json          observed traffic counts and population used for calibration
 network/
@@ -179,12 +181,12 @@ The pipeline is deterministic. With fixed random seeds, the committed network an
 
 | Step | Script | Output |
 |---|---|---|
-| 1 | `01_download_osm.py` | OSM roads from Overpass, in 12 tiles (one big query times out) |
+| 1 | `01_download_osm.py` | OSM roads from Overpass, in 12 tiles (one big query times out), then the points of interest |
 | 2 | `02_download_tiles.py` | OpenFreeMap z14 vector tiles |
 | 3 | `03_build_network.py` | `network/lucca.net.xml.gz` + patches |
 | 4 | `04_build_zones.py` | zones, trip-end weights, gateways, travel-time matrix |
 | 5 | `05_generate_demand.py <day> [scale]` | `demand/<day>.trips.xml.gz` |
-| 6 | `06_export_static.py` | viewer scene: buildings, land cover, walls, roads |
+| 6 | `06_export_static.py` | viewer scene: buildings, land cover, walls, roads, points of interest |
 | 7 | `07_run_simulation.py <day> [trips]` | `results/<day>/`: edge data, statistics, tripinfo, vehroutes |
 | 8 | `08_export_results.py <day> [scenario]` | per-edge hourly metrics, KPIs, critical points, trip replay; with a scenario, its run for the viewer's switch |
 | 9 | `09_check_counts.py` | `results/calibration.json` |
@@ -349,6 +351,8 @@ Every push to `main` that touches the viewer builds the site and deploys it to G
 - `trips/<run>_HH`: the `LTR1` trip replay, one file per hour holding every vehicle on the road during that hour, so any clock time needs a single file. A 16-byte header (magic, vehicles, route edges, hour start), then per vehicle the uint32 departure second and the uint16 route length; per route edge a uint16 road index and the uint16 seconds since the previous exit; finally per vehicle the type and the departure and arrival positions on their edges (uint8, 0–255 of the edge length). The viewer rebuilds the motion in between the way [MATSim](https://matsim.org) draws its queue snapshots. On each road a vehicle drives in a lane that leads to its next road, at its free speed (the speed limit times its own speed factor, estimated from its fastest roads), until it reaches the back of the queue of vehicles that entered the lane before it and leave first; it waits there, moving up as they leave (each gives up its place over its last 2 s), until its own exit time, then crosses the junction in a straight line. A vehicle that took at most 3 s, or 25%, longer than its free-flow time on a road (whichever is more) drives it at a steady speed instead. SUMO only lets a vehicle leave a signalised approach on green or amber, so the replayed vehicles stop at red lights.
 
 **Traffic lights** are in `static.json` under `tls`: `prog` holds each signal's plan (offset and `[seconds, state]` phases, one SUMO state letter per controlled link), `heads` one head per controlled lane (signal index, link indices, stop-line position, heading in degrees clockwise from north) and `poles` one pole per approach (signal index, position, heading, arm reach in metres). A head shows green if any of its links has `G` or `g`, amber for `y`, red otherwise.
+
+**Points of interest** are in `static.json` under `poi`: name (empty if OSM has none), category (`edu`, `health`, `shop`, `sport`, `work`, `civic`), kind (`Supermarket`, `Factory`, …) and position. `POI_KINDS` in `06_export_static.py` maps OSM tags to them; a site OSM maps twice (its grounds and a building on them) keeps one point.
 
 **Runs.** The scene holds the roads and signals of every run: the baseline's first, so their indices never change, then
 those only a scenario's network has. A scenario's changed signal is a signal of its own. `static.json` lists under

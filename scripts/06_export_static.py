@@ -1,16 +1,16 @@
-"""Export static 3D scene geometry (roads, buildings, land cover, water, walls, rail, place labels) for the viewer.
+"""Export static 3D scene geometry (roads, buildings, land cover, water, walls, rail, place labels, points of interest) for the viewer.
 All coordinates are local metres relative to ORIGIN (Piazza San Michele) in the SUMO/UTM frame.
 The roads and signals are those of the baseline network followed by those only the viewer's scenarios have
 (VIEWER_SCENARIOS), so baseline road indices never change; absent[run] lists what a run's network lacks.
 Output: public/data/static.json + build/web/static.bin (packed later by 11_pack_web.py), build/edge_ids.json.
 usage: python3 scripts/06_export_static.py"""
-import sys, json, pickle, struct, collections, math
+import sys, json, gzip, pickle, struct, collections, math
 import numpy as np, sumolib
-from shapely.geometry import Polygon, MultiPolygon, LineString, MultiLineString, box
+from shapely.geometry import Point, Polygon, MultiPolygon, LineString, MultiLineString, box
 from shapely.geometry.polygon import orient
-from shapely.ops import unary_union
+from shapely.ops import unary_union, polygonize
 from osm_extract import load
-from common import NET, OMT_GEO, OSM_ROADS, WEBRAW, WEBDATA, EDGE_IDS, BBOX, ORIGIN, VIEWER_SCENARIOS, read_net, scenario_net
+from common import NET, OMT_GEO, OSM_ROADS, OSM_POI, WEBRAW, WEBDATA, EDGE_IDS, BBOX, ORIGIN, VIEWER_SCENARIOS, read_net, scenario_net
 
 import os
 WEBDATA.mkdir(parents=True, exist_ok=True)
@@ -137,6 +137,51 @@ for nid, (lon, lat, tags) in nodes.items():
             labels.append({'n': tags['name'], 'p': [round(x - X0), round(y - Y0)], 'k': pl})
 meta['places'] = labels
 print('walls polys', len(wpolys), 'rail', len(rst) - 1, 'labels', len(labels))
+
+# ---------------- points of interest: places that draw crowds, by category (the viewer's colours), the first match wins.
+# Workplaces count only from 5000 m2 of outline, which keeps the factories and drops the small workshops.
+POI_KINDS = [('edu', 'amenity', {'school': 'School', 'college': 'College', 'university': 'University'}),
+             ('health', 'amenity', {'hospital': 'Hospital', 'clinic': 'Clinic'}), ('health', 'healthcare', {'hospital': 'Hospital'}),
+             ('shop', 'shop', {'mall': 'Shopping centre', 'supermarket': 'Supermarket', 'department_store': 'Department store', 'wholesale': 'Wholesale store',
+                               'doityourself': 'DIY store', 'electronics': 'Electronics store', 'garden_centre': 'Garden centre'}),
+             ('shop', 'amenity', {'marketplace': 'Market'}), ('shop', 'landuse', {'retail': 'Retail park'}),
+             ('sport', 'leisure', {'stadium': 'Stadium', 'sports_centre': 'Sports centre', 'sports_hall': 'Sports hall', 'swimming_pool': 'Swimming pool'}),
+             ('civic', 'railway', {'station': 'Railway station'}),
+             ('civic', 'amenity', {'bus_station': 'Bus station', 'townhall': 'Town hall', 'courthouse': 'Courthouse', 'cinema': 'Cinema', 'theatre': 'Theatre'}),
+             ('work', 'man_made', {'works': 'Factory'}), ('work', 'industrial', {'*': 'Factory'}), ('work', 'building', {'industrial': 'Factory'}),
+             ('work', 'landuse', {'industrial': 'Industrial site'})]
+WORK_MIN_M2 = 5000
+
+def poi_kind(tags):
+    for cat, key, vals in POI_KINDS:
+        v = tags.get(key)
+        if v and (v in vals or '*' in vals): return cat, vals.get(v, vals.get('*'))
+    return None
+
+def poi_shape(e):
+    xy = lambda g: [net.convertLonLat2XY(p['lon'], p['lat']) for p in g]
+    if e['type'] == 'node': return Point(net.convertLonLat2XY(e['lon'], e['lat']))
+    if e['type'] == 'way':
+        pts = xy(e['geometry'])
+        return Polygon(pts).buffer(0) if len(pts) >= 4 and pts[0] == pts[-1] else LineString(pts)
+    return unary_union(list(polygonize([LineString(xy(m['geometry'])) for m in e['members'] if m.get('role') == 'outer' and m.get('geometry')])))
+
+pois = []
+for e in json.load(gzip.open(OSM_POI))['elements']:
+    tags = e.get('tags', {}); kind = poi_kind(tags)
+    if not kind or tags.get('access') in ('private', 'no'): continue
+    g = poi_shape(e)
+    if g.is_empty or (kind[0] == 'work' and g.area < WORK_MIN_M2): continue
+    p = g.representative_point() if g.area else g.centroid
+    if CLIP.contains(p): pois.append({'n': tags.get('name', ''), 'c': kind[0], 't': kind[1], 'p': [round(p.x - X0), round(p.y - Y0)], 'a': g.area})
+# one point per place: OSM often maps a site twice (its grounds and a building or node on them, or a factory and its plot), so
+# drop a point near a bigger one of its category unless both are named differently
+pois.sort(key=lambda q: -q['a'])
+kept = []
+for q in pois:
+    if not any(k['c'] == q['c'] and math.dist(k['p'], q['p']) < 250 and (not q['n'] or not k['n'] or k['n'] == q['n']) for k in kept): kept.append(q)
+meta['poi'] = [{k: v for k, v in q.items() if k != 'a'} for q in kept]
+print('points of interest', len(kept), dict(collections.Counter(q['c'] for q in kept)))
 
 # ---------------- roads = simulated edges of the baseline, then the scenarios' own
 runs = {'base': sumolib.net.readNet(str(NET), withPrograms=True)} | {r: sumolib.net.readNet(str(scenario_net(r)), withPrograms=True) for r in VIEWER_SCENARIOS}

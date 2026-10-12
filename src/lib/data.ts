@@ -17,8 +17,10 @@ const T = { float32: Float32Array, uint32: Uint32Array, uint16: Uint16Array, uin
 interface IndexEntry { dtype: keyof typeof T; offset: number; length: number }
 
 export interface Place { n: string; k: string; p: [number, number] }
+export type PoiCat = 'edu' | 'health' | 'shop' | 'sport' | 'work' | 'civic'
+export interface Poi { n: string; c: PoiCat; t: string; p: [number, number] }   // n: name, '' if unnamed; t: what it is
 export interface Meta {
-  origin: [number, number]; index: Record<string, IndexEntry>; road_names: string[]; places: Place[]; tls: Signals
+  origin: [number, number]; index: Record<string, IndexEntry>; road_names: string[]; places: Place[]; poi: Poi[]; tls: Signals
   absent?: Record<Run, { roads: number[]; tls: number[] }>   // road and signal indices a run's network does not have
 }
 export interface Kpi { veh_in_net: number; avg_kmh: number; delay_vh: number; cong_km: number }

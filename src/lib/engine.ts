@@ -3,7 +3,7 @@
 import { AmbientLight, Deck, FlyToInterpolator, LightingEffect, WebMercatorViewport, _SunLight, type PickingInfo } from '@deck.gl/core/typed'
 import type { QueryClient } from '@tanstack/react-query'
 import { C, hourBlend, lerp, readTokens, type Blend, type Mode } from './color'
-import { dayData, edgesQuery, otherDay, type Day, type Hotspot, type Run, type Scene, type Summary } from './data'
+import { dayData, edgesQuery, otherDay, type Day, type Hotspot, type Poi, type Run, type Scene, type Summary } from './data'
 import { fmt, hh, hhmm, spotName } from './format'
 import { buildLayers, groundData, sceneData } from './layers'
 import { cycleOf, LIGHT_NAME, signalAt, type Head } from './signals'
@@ -241,6 +241,10 @@ export class Engine {
     if (id.startsWith('tls')) {
       const h = info.object as Head, s = this.scene.meta.tls, now = signalAt(s, h, this.t)
       return { title: 'Traffic light', lines: [`${LIGHT_NAME[now.light]} · changes in ${Math.ceil(now.left)} s`, `fixed-time plan · ${cycleOf(s.prog[h.t])} s cycle`] }
+    }
+    if (id === 'poi') {
+      const q = info.object as Poi
+      return { title: q.n || q.t, lines: q.n ? [q.t] : [] }
     }
     if (id === 'hot' || id === 'hot-rank') {
       const h = info.object as Hotspot

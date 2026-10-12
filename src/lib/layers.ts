@@ -4,7 +4,7 @@ import { COORDINATE_SYSTEM } from '@deck.gl/core/typed'
 import { ColumnLayer, PathLayer, ScatterplotLayer, SolidPolygonLayer, TextLayer } from '@deck.gl/layers/typed'
 import { SimpleMeshLayer } from '@deck.gl/mesh-layers/typed'
 import { blendOf, C, delayStops, lerp, mix, ramp, sevColor, speedStops, volStops, type RGBA } from './color'
-import { dayData, type Edges, type Hotspot, type Run, type Scene } from './data'
+import { dayData, type Edges, type Hotspot, type Poi, type Run, type Scene } from './data'
 import type { Engine } from './engine'
 import type { Head, Pole } from './signals'
 
@@ -63,7 +63,7 @@ export const groundData = (s: Scene) => ({ length: s.gnd.length, startIndices: s
 export function sceneData(s: Scene) {
   const { ww, rail, wall, bld } = s
   return {
-    ground: groundData(s), runs: Object.fromEntries(Object.keys(s.meta.absent ?? { base: 0 }).map(r => [r, runParts(s, r)])),
+    ground: groundData(s), poiNamed: s.meta.poi.filter(q => q.n), runs: Object.fromEntries(Object.keys(s.meta.absent ?? { base: 0 }).map(r => [r, runParts(s, r)])),
     ww: { length: ww.length, startIndices: ww.startIndices, attributes: { getPath: { value: ww.pos, size: 2 } } },
     rail: { length: rail.length, startIndices: rail.startIndices, attributes: { getPath: { value: rail.pos, size: 2 } } },
     wall: { length: wall.length, startIndices: wall.startIndices, attributes: { getPolygon: { value: wall.pos, size: 2 } } },
@@ -146,6 +146,16 @@ export function buildLayers(g: Engine) {
     L.push(new TextLayer<Hotspot>({ id: 'hot-rank', ...COORD, data: hd, getPosition: d => [d.x, d.y, tall ? (12 + dh(d) * 10) * es + 20 : 6], getText: d => String(d.rank), getSize: 15,
       pickable: !tall, fontFamily: 'Barlow Condensed, Arial Narrow, sans-serif', fontWeight: 700, getColor: C.label, fontSettings: { sdf: true }, outlineWidth: 4,
       outlineColor: [...C.halo.slice(0, 3), 230] as RGBA, billboard: true, updateTriggers: { getPosition: [st.day, g.ct, tall, es], getColor: rev, outlineColor: rev } }))
+  }
+  // points of interest stay visible through buildings; their names show from street level
+  if (st.layers.poi) {
+    L.push(new ScatterplotLayer<Poi>({ id: 'poi', ...COORD, data: meta.poi, getPosition: d => [d.p[0], d.p[1], 2], radiusUnits: 'pixels', getRadius: 5.5,
+      stroked: true, lineWidthUnits: 'pixels', getLineWidth: 1.5, getFillColor: d => C.poi[d.c], getLineColor: C.halo, pickable: true, autoHighlight: true,
+      highlightColor: [255, 255, 255, 120], parameters: { depthTest: false }, updateTriggers: { getFillColor: rev, getLineColor: rev } }))
+    if (g.zoom >= 15) L.push(new TextLayer<Poi>({ id: 'poi-names', ...COORD, data: g.data.poiNamed, getPosition: d => [d.p[0], d.p[1], 2], getText: d => d.n,
+      getSize: 12, sizeUnits: 'pixels', getPixelOffset: [0, -9], getAlignmentBaseline: 'bottom', fontFamily: 'Barlow Condensed, Arial Narrow, sans-serif',
+      fontWeight: 600, characterSet: 'auto', getColor: [...C.label.slice(0, 3), 230] as RGBA, fontSettings: { sdf: true }, outlineWidth: 4,
+      outlineColor: [...C.halo.slice(0, 3), 220] as RGBA, billboard: true, parameters: { depthTest: false }, updateTriggers: { getColor: rev, outlineColor: rev } }))
   }
   if (st.layers.lbl) L.push(new TextLayer<(typeof meta.places)[number]>({ id: 'places', ...COORD, data: meta.places, getPosition: d => [d.p[0], d.p[1], 30], getText: d => d.n,
     getSize: d => (d.k === 'city' || d.k === 'town' ? 15 : 12), sizeUnits: 'pixels', fontFamily: 'Barlow Condensed, Arial Narrow, sans-serif', fontWeight: 600,

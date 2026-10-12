@@ -3,13 +3,13 @@ import { useEffect, useRef, useState } from 'react'
 import { Engine } from '../lib/engine'
 import { startTime } from '../lib/search'
 import { FollowCard, Tooltip } from './Overlays'
-import { Panel } from './Panel'
+import { Layers, Panel } from './Panel'
 import { Strip } from './Strip'
 
 const route = getRouteApi('/')
 
 // Layout: full-bleed 3D scene; a floating control column on the left (bottom sheet on phones);
-// a 24-hour strip docked at the bottom that doubles as the clock.
+// layer switches in a box on the right; a 24-hour strip docked at the bottom that doubles as the clock.
 export function Viewer() {
   const { scene, summary, run } = route.useLoaderData()
   const { queryClient } = route.useRouteContext()
@@ -33,6 +33,7 @@ export function Viewer() {
     </div>
     {engine && <>
       <Panel engine={engine} />
+      <Layers engine={engine} />
       <Strip engine={engine} />
       <FollowCard engine={engine} />
       <Tooltip />

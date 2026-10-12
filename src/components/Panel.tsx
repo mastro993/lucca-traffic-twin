@@ -1,7 +1,7 @@
 import { shallow, useSelector } from '@tanstack/react-store'
 import { useState } from 'react'
 import { delayStops, speedStops, volStops, type Mode } from '../lib/color'
-import type { Day } from '../lib/data'
+import type { Day, PoiCat } from '../lib/data'
 import type { Engine } from '../lib/engine'
 import { ctxText, fmt, hhmm } from '../lib/format'
 import { viewer, type LayerKey } from '../lib/store'
@@ -9,11 +9,13 @@ import { Spots } from './Spots'
 
 const DAY_BUTTONS: [Day, string][] = [['wd', 'Weekday'], ['sat', 'Saturday']]
 const MODE_BUTTONS: [Mode, string][] = [['speed', 'Speed'], ['vol', 'Volume'], ['delay', 'Delay']]
-const LAYER_TOGGLES: [LayerKey, string][] = [['veh', 'Vehicles'], ['tls', 'Traffic lights'], ['bld', 'Buildings'], ['hot', 'Critical points'], ['lbl', 'Place names']]
+const POI_CATS: [PoiCat, string][] = [['edu', 'Schools'], ['health', 'Hospitals, clinics'], ['shop', 'Big stores, markets'], ['sport', 'Sports grounds'],
+  ['work', 'Factories, industry'], ['civic', 'Stations, civic, culture']]
+const LAYER_TOGGLES: [LayerKey, string][] = [['veh', 'Vehicles'], ['tls', 'Traffic lights'], ['bld', 'Buildings'], ['hot', 'Critical points'], ['lbl', 'Place names'], ['poi', 'Points of interest']]
 
 export function Panel({ engine }: { engine: Engine }) {
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 760)
-  const { day, run, mode, layers } = useSelector(viewer, s => ({ day: s.day, run: s.run, mode: s.mode, layers: s.layers }), { compare: shallow })
+  const { day, run, mode } = useSelector(viewer, s => ({ day: s.day, run: s.run, mode: s.mode }), { compare: shallow })
   const runs = engine.summary.runs
   return <aside id="panel" className={collapsed ? 'collapsed' : undefined} aria-label="Simulation controls">
     <button className="sheet-handle" onClick={() => setCollapsed(c => !c)} aria-label="Expand or collapse panel" />
@@ -40,15 +42,33 @@ export function Panel({ engine }: { engine: Engine }) {
         <div className="label" style={{ marginBottom: 6, display: 'flex', justifyContent: 'space-between' }}><span>Critical points by daily delay</span><span>this hour</span></div>
         <Spots engine={engine} />
       </div>
+      <p className="hint">Click a vehicle to follow its trip from departure to arrival.</p>
+      <About engine={engine} />
+    </div>
+  </aside>
+}
+
+// Layer switches float in a drawer on the right: a pin button that pulls the box out from the edge and pushes it
+// back. Closed at first on phones, where the panel is a bottom sheet.
+export function Layers({ engine }: { engine: Engine }) {
+  const layers = useSelector(viewer, s => s.layers)
+  const [open, setOpen] = useState(() => window.innerWidth >= 760)
+  return <div id="layers" className={open ? 'open' : undefined}>
+    <button className="handle" aria-expanded={open} aria-controls="layers-box" aria-label="Layers" onClick={() => setOpen(o => !o)}>
+      <svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" /></svg>
+    </button>
+    <aside id="layers-box" aria-label="Layers">
+      <div className="label">Layers</div>
       <div className="toggles" role="group" aria-label="Layers">
         {LAYER_TOGGLES.map(([k, label]) => <label key={k}>
           <input type="checkbox" checked={layers[k]} onChange={e => engine.setLayer(k, e.target.checked)} /> {label}
         </label>)}
       </div>
-      <p className="hint">Click a vehicle to follow its trip from departure to arrival.</p>
-      <About engine={engine} />
-    </div>
-  </aside>
+      {layers.poi && <ul className="poi-key" aria-label="Points of interest">
+        {POI_CATS.map(([c, label]) => <li key={c}><i style={{ background: `var(--poi-${c})` }} />{label}</li>)}
+      </ul>}
+    </aside>
+  </div>
 }
 
 function Clock() {
