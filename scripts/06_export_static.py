@@ -1,8 +1,9 @@
 """Export static 3D scene geometry (roads, buildings, land cover, water, walls, rail, place labels, points of interest) for the viewer.
 All coordinates are local metres relative to ORIGIN (Piazza San Michele) in the SUMO/UTM frame.
-The roads and signals are those of the baseline network followed by those only the viewer's scenarios have
+The roads and signals are those of the baseline network followed by those only the viewer's scenarios have or change
 (VIEWER_SCENARIOS), so baseline road indices never change; absent[run] lists what a run's network lacks.
-Output: public/data/static.json + build/web/static.bin (packed later by 11_pack_web.py), build/edge_ids.json.
+Output: public/data/static.json + build/web/static.bin (packed later by 11_pack_web.py), build/edge_ids.json (each run's
+edges and their road indices).
 usage: python3 scripts/06_export_static.py"""
 import sys, json, gzip, pickle, struct, collections, math
 import numpy as np, sumolib
@@ -183,48 +184,52 @@ for q in pois:
 meta['poi'] = [{k: v for k, v in q.items() if k != 'a'} for q in kept]
 print('points of interest', len(kept), dict(collections.Counter(q['c'] for q in kept)))
 
-# ---------------- roads = simulated edges of the baseline, then the scenarios' own
+# ---------------- roads = simulated edges of the baseline, then the scenarios' own. A road is an edge as the viewer draws
+# and replays it: an edge a scenario reshapes (an arm re-pointed to a new junction, a motorway cut for a new exit) or gives
+# other lanes, class, name, speed or access is a road of its own, absent from the other runs.
 runs = {'base': sumolib.net.readNet(str(NET), withPrograms=True)} | {r: sumolib.net.readNet(str(scenario_net(r)), withPrograms=True) for r in VIEWER_SCENARIOS}
 ROADCLS = {'highway.motorway': 0, 'highway.motorway_link': 1, 'highway.trunk': 1, 'highway.primary': 2, 'highway.primary_link': 2,
            'highway.secondary': 3, 'highway.secondary_link': 3, 'highway.tertiary': 4, 'highway.tertiary_link': 4,
            'highway.unclassified': 5, 'highway.residential': 6}
-edges, seen = [], set()
-for rn in runs.values():
+def drawn(e):
+    """The road along the middle of its lanes: the two directions sit side by side, and vehicles and signal heads line up
+    with the lanes."""
+    l0, l1 = e.getLanes()[0].getShape(), e.getLanes()[-1].getShape()
+    return [((a[0] + b[0]) / 2, (a[1] + b[1]) / 2) for a, b in zip(l0, l1)] if len(l0) == len(l1) else e.getShape()
+edges, road_of, ridx = [], {}, {}   # ridx[run][edge id]: the road the run's edge is
+for r, rn in runs.items():
+    ridx[r] = {}
     for e in rn.getEdges():
-        if e.getFunction() != 'internal' and e.getID() not in seen: seen.add(e.getID()); edges.append(e)
+        if e.getFunction() == 'internal': continue
+        k = (e.getID(), tuple(drawn(e)), e.getLaneNumber(), e.getType(), e.getName(), e.getSpeed(), e.allows('passenger'))
+        if k not in road_of: road_of[k] = len(edges); edges.append(e)
+        ridx[r][e.getID()] = road_of[k]
 names = sorted(set(e.getName().replace('&apos;', "'") for e in edges))
 nidx = {n: i for i, n in enumerate(names)}
 epos, est, elanes, ecls, ename, elen, espeed, eztl = [], [], [], [], [], [], [], []
-edge_ids = []
 for e in edges:
-    # draw the road along the middle of its lanes: the two directions sit side by side, and vehicles and signal heads
-    # line up with the lanes
-    l0, l1 = e.getLanes()[0].getShape(), e.getLanes()[-1].getShape()
-    shp = [((a[0] + b[0]) / 2, (a[1] + b[1]) / 2) for a, b in zip(l0, l1)] if len(l0) == len(l1) else e.getShape()
     est.append(len(epos) // 2)
-    for x, y in shp: epos += [x - X0, y - Y0]
+    for x, y in drawn(e): epos += [x - X0, y - Y0]
     elanes.append(e.getLaneNumber()); ecls.append(ROADCLS.get(e.getType(), 7)); ename.append(nidx[e.getName().replace('&apos;', "'")])
     elen.append(e.getLength()); espeed.append(e.getSpeed()); eztl.append(0 if e.allows('passenger') else 1)
-    edge_ids.append(e.getID())
 est.append(len(epos) // 2)
 B.add('road_pos', np.array(epos, np.float32)); B.add('road_start', np.array(est, np.uint32))
 B.add('road_lanes', np.array(elanes, np.uint8)); B.add('road_cls', np.array(ecls, np.uint8)); B.add('road_name', np.array(ename, np.uint16))
 B.add('road_len', np.array(elen, np.float32)); B.add('road_speed', np.array(espeed, np.float32)); B.add('road_ztl', np.array(eztl, np.uint8))
 meta['road_names'] = names; meta['roads'] = len(edges)
-absent = {r: {'roads': [i for i, e in enumerate(edges) if not rn.hasEdge(e.getID())]} for r, rn in runs.items()}
+absent = {r: {'roads': sorted(set(range(len(edges))) - set(ridx[r].values()))} for r in runs}
 
 # ---------------- turning movements: for every pair of consecutive roads, the lanes (bit 0 = rightmost) a vehicle can
 # leave the first one from, so the trip replay puts vehicles in a lane that leads where they go next
 VEH = ('passenger', 'custom1', 'delivery', 'truck')
-eidx = {e: i for i, e in enumerate(edge_ids)}
 moves = collections.defaultdict(int)
-for rn in runs.values():
+for r, rn in runs.items():
     for e in rn.getEdges():
         if e.getFunction() == 'internal': continue
         for lane in e.getLanes():
             if not any(lane.allows(v) for v in VEH): continue
             for c in lane.getOutgoing():
-                moves[eidx[e.getID()], eidx[c.getTo().getID()]] |= 1 << min(7, lane.getIndex())
+                moves[ridx[r][e.getID()], ridx[r][c.getTo().getID()]] |= 1 << min(7, lane.getIndex())
 mv = sorted(moves.items())
 B.add('move_from', np.array([a for (a, _), _ in mv], np.uint16)); B.add('move_to', np.array([b for (_, b), _ in mv], np.uint16))
 B.add('move_lanes', np.array([m for _, m in mv], np.uint8))
@@ -267,5 +272,5 @@ meta['absent'] = absent
 print('traffic signals', len(prog), 'heads', len(heads), 'poles', len(poles), 'absent', {r: {k: len(v) for k, v in a.items()} for r, a in absent.items()})
 idx = B.write(WEBRAW / 'static.bin'); meta['index'] = idx
 json.dump(meta, open(WEBDATA / 'static.json', 'w'), separators=(',', ':'), ensure_ascii=False)
-json.dump(edge_ids, open(EDGE_IDS, 'w'))
+json.dump({'roads': len(edges), 'runs': ridx}, open(EDGE_IDS, 'w'))
 print('roads', len(edges), 'static.bin MB', os.path.getsize(WEBRAW / 'static.bin') / 1e6)

@@ -453,10 +453,11 @@ Every push to `main` that touches the viewer builds the site and deploys it to G
 **Points of interest** are in `static.json` under `poi`: name (empty if OSM has none), category (`edu`, `health`, `shop`, `sport`, `work`, `civic`), kind (`Supermarket`, `Factory`, …) and position. `POI_KINDS` in `06_export_static.py` maps OSM tags to them; a site OSM maps twice (its grounds and a building on them) keeps one point.
 
 **Runs.** The scene holds the roads and signals of every run: the baseline's first, so their indices never change, then
-those only a scenario's network has. A scenario's changed signal is a signal of its own. `static.json` lists under
-`absent`, for each run (`base` or the scenario's name), the road and signal indices its network lacks, and the viewer
-hides them. `summary.json` lists the switch's runs under `runs` (id, label, note, and `vs`, the run the strip draws
-dashed) and their KPIs and critical points under `scen`, by file prefix (`wd-<scenario>`).
+those only a scenario's network has. A road a scenario reshapes (an arm re-pointed to a new junction, a motorway cut for
+a new exit) or gives other lanes, class or speed, and a signal it changes, are roads and signals of their own.
+`static.json` lists under `absent`, for each run (`base` or the scenario's name), the road and signal indices its
+network lacks, and the viewer hides them. `summary.json` lists the switch's runs under `runs` (id, label, note, and
+`vs`, the run the strip draws dashed) and their KPIs and critical points under `scen`, by file prefix (`wd-<scenario>`).
 
 **Coordinates** are local metres in the SUMO/UTM frame, relative to Piazza San Michele.
 
