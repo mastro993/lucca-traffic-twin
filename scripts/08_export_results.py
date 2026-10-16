@@ -3,7 +3,7 @@ and the vehicle routes (vehroutes.xml.gz, when the run wrote it) into the viewer
 With a scenario, its run in results/scenarios/<scenario>/<day>/ (as 12_scenario.py made it), for the viewer's run switch.
 Output: build/web/<key>_edges.bin, build/web/trips/<key>_HH.bin, results/<day>_results.json; key = wd, sat, wd-<scenario>, ...
 (the scenario's results.json in its run folder)
-usage: python3 scripts/08_export_results.py <weekday|saturday> [scenario]   # after 06_export_static.py, whose road list it uses"""
+usage: python3 scripts/08_export_results.py <weekday|saturday> [scenario]   # after 06_export_static.py, whose road indices it uses"""
 import sys, json, math, collections, gzip, struct
 import numpy as np, sumolib
 from lxml import etree
@@ -12,9 +12,10 @@ day, scen = sys.argv[1], (sys.argv[2] if len(sys.argv) > 2 else None)
 key = {'weekday': 'wd', 'saturday': 'sat'}[day] + (f'-{scen}' if scen else '')
 run = RESULTS / 'scenarios' / scen / day if scen else RESULTS / day
 net = read_net(scenario_net(scen) if scen else NET)
-edge_ids = json.load(open(EDGE_IDS))
-eidx = {e: i for i, e in enumerate(edge_ids)}
-NE, NH = len(edge_ids), 24
+roads = json.load(open(EDGE_IDS))
+if (scen or 'base') not in roads['runs']: sys.exit(f'{scen} is not a viewer run: add it to VIEWER_SCENARIOS and run 06_export_static.py')
+eidx = dict(sorted(roads['runs'][scen or 'base'].items(), key=lambda t: t[1]))   # the run's edges -> their road indices, in road order
+NE, NH = roads['roads'], 24
 LON0, LAT0 = ORIGIN; X0, Y0 = net.convertLonLat2XY(LON0, LAT0)
 
 F = {k: np.zeros((NH, NE), np.float32) for k in ('flow', 'speedRel', 'timeLoss', 'waiting', 'sampled', 'distance', 'departed', 'density')}
@@ -45,7 +46,7 @@ gw_in = set(sum([g['in'] for g in Zd['gateways']], []))
 
 # deadlock signature (lane-end blocking on short multi-lane links, resolved by teleports): near-zero speed, almost no throughput
 dead = has & (F['speedRel'] < 0.03) & (F['flow'] < 60) & (F['timeLoss'] > 1800)
-gw_mask = np.array([e in gw_in for e in edge_ids])
+gw_mask = np.zeros(NE, bool); gw_mask[[i for e, i in eidx.items() if e in gw_in]] = True
 loss_net = np.where(dead | gw_mask[None, :], 0, F['timeLoss'])
 print('deadlock edge-hours', int(dead.sum()), 'veh-h excluded', round(float(F['timeLoss'][dead].sum() / 3600)), 'gateway veh-h excluded', round(float(F['timeLoss'][:, gw_mask].sum() / 3600)))
 
@@ -58,7 +59,8 @@ with open(WEBRAW / f'{key}_edges.bin', 'wb') as f:
     for arr in (spd, flow, delay, dens): f.write(arr.tobytes())
 
 # ---------------- KPIs per hour
-lens = np.array([net.getEdge(e).getLength() if net.hasEdge(e) else 0 for e in edge_ids])   # roads of other runs: no data
+lens = np.zeros(NE)   # roads of other runs: no data
+lens[list(eidx.values())] = [net.getEdge(e).getLength() for e in eidx]
 kpi = []
 for h in range(NH):
     vh = F['sampled'][h].sum() / 3600; vkm = F['distance'][h].sum() / 1000
@@ -87,8 +89,8 @@ for e in net.getEdges():
 cl_delay = collections.defaultdict(lambda: np.zeros(NH)); cl_edges = collections.defaultdict(collections.Counter)
 cl_wait = collections.defaultdict(lambda: np.zeros(NH)); cl_flow = collections.defaultdict(lambda: np.zeros(NH))
 cl_minspd = collections.defaultdict(lambda: np.ones(NH))
-for i, eid in enumerate(edge_ids):
-    if eid in gw_in or not net.hasEdge(eid): continue
+for eid, i in eidx.items():
+    if eid in gw_in: continue
     e = net.getEdge(eid)
     c = find(e.getToNode().getID())
     # count only delay incurred on the approach (edges that end at the cluster and are not inside it)

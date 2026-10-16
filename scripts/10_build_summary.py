@@ -13,6 +13,8 @@ LANDMARKS = [  # lat, lon, label, note  (manual names for well-known nodes; matc
      'The ramps that connect the A11 to Viale Europa and San Concordio. Ramp traffic merges with the urban flow inbound to the city.'),
     (43.8342, 10.4744, 'A11 Lucca Ovest exit / Via delle Città Gemelle', 'Short multi-lane links after the Lucca Ovest toll; part of the delay here is lane-change blocking in the model.'),
     (43.8379, 10.4691, 'A11 Lucca Ovest junction ramps', 'Ramps of the Lucca Ovest / Viareggio junction feeding Sant\'Anna and the western ring.'),
+    (43.8282, 10.5267, 'A11 approaching the Mugnano exit',
+     'Westbound motorway traffic from Florence on the 5 km before the new exit\'s junction (Mugnano run). In the other runs the same stretch leads to Lucca Est, and its delay counts there.'),
     (43.8242, 10.5972, 'A11 Capannori exit', 'Toll exit serving the Capannori industrial area and the eastern plain. It queues as morning shifts arrive.'),
     (43.8234, 10.5890, 'A11 approaching Capannori', 'Motorway traffic slowed by the queue for the Capannori exit.'),
     (43.9052, 10.5288, 'Ponte a Moriano: SS12 at Galleria Colletto',
@@ -48,10 +50,7 @@ def label(h):
     if lm: return lm[2]
     st = [s for s in h['streets'] if s and not s.startswith('Traversa')]
     near = min(places, key=lambda p: math.hypot(p['p'][0] - h['x'], p['p'][1] - h['y']))
-    dn = math.hypot(near['p'][0] - h['x'], near['p'][1] - h['y'])
-    if not st: return f"Junction near {near['n']}"
-    base = ' / '.join(st[:2])
-    return base
+    return ' / '.join(st[:2]) if st else f"Junction near {near['n']}"
 
 def area(h):
     near = min(places, key=lambda p: math.hypot(p['p'][0] - h['x'], p['p'][1] - h['y']))
@@ -68,6 +67,10 @@ RUNS = {
     'bandettini_roundabout': {'label': 'After', 'vs': 'bandettini_signals',
                               'note': 'The Viale Europa / Via Bandettini roundabout as designed: a two-lane ring, two entry lanes from '
                                       'Viale Europa, one exit lane on every arm.'},
+    'mugnano_exit': {'label': 'Mugnano', 'vs': 'bandettini_roundabout',
+                     'note': 'A proposal: the A11 Lucca Est exit moved to Mugnano, as the University of Pisa\'s 2020 feasibility study '
+                             'for the Comune designs it, with its roundabouts on Via di Mugnano. Lucca Est closes; Lucca Ovest and '
+                             'Capannori stay. The rest is the After network.'},
 }
 
 def labelled(r):
@@ -118,7 +121,7 @@ out['about'] = {
     'hotspots': ('Junctions are grouped into clusters: roundabouts, and nodes linked by edges shorter than 45 m. Each cluster is scored by the vehicle-hours lost on its approach links, '
                  'measured as SUMO time loss against free-flow speed. Insertion queues on the boundary roads are excluded. The ranking uses daily totals; the 3D columns show the selected hour.'),
     'limits': ('Counts are sparse and dated (2017–2021). The model is about 10–15% high on SR439 and SS12 and 25–35% low on the eastern Pesciatina and Viale Europa corridors. '
-               'Signal plans are not public, so every signal runs a fixed-time plan with Italian standard timings: a 70 s cycle, 4 s amber, 2 s all-red, no coordination. About 1% of vehicles get teleported out of local deadlocks. One junction at the Lucca Ovest toll is left out of the ranking because its delay comes from lane-change blocking on very short links, a known SUMO artefact. Parking search, buses, bicycles, roadworks, incidents and events '
+               'Signal plans are not public, so every signal runs a fixed-time plan with Italian standard timings: a 70 s cycle, 4 s amber, 2 s all-red, no coordination. About 1% of vehicles get teleported out of local deadlocks. One junction at the Lucca Ovest toll is left out of the ranking because its delay comes from lane-change blocking on very short links, a known SUMO artefact. Parking search, motorway tolls, buses, bicycles, roadworks, incidents and events '
                '(such as Lucca Comics & Games) are not modelled. Treat absolute delays as indicative and the ranking of critical points as the main result.'),
     'sources': [
         {'t': 'OpenStreetMap (ODbL)', 'url': 'https://www.openstreetmap.org/copyright'},

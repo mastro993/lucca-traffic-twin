@@ -1,0 +1,14 @@
+{
+  "The new exit: ramps, toll plaza, roundabouts (400 m, the motorway not counted)": {"near": [43.8305, 10.5197, 400], "type": "link|primary|secondary|tertiary|unclassified|residential"},
+  "Lucca Est exit and its ramps (300 m, the motorway not counted)": {"near": [43.831, 10.4912, 300], "type": "link|primary|secondary|tertiary|unclassified|residential"},
+  "A11, Lucca Ovest junction to the Capannori exit": {"name": "^Autostrada Firenze-Mare$", "bbox": [43.815, 10.47, 43.836, 10.6]},
+  "Viale Europa (SS12 radd.), Lucca Est to the Walls": {"name": "^Viale Europa$", "bbox": [43.826, 10.485, 43.8405, 10.5]},
+  "Teresa Mattei roundabout, Viale Carducci / Viale Europa (100 m)": {"near": [43.83981, 10.49528, 100]},
+  "The Viali, the ring road round the Walls": {"name": "^(Viale (Giuseppe Giusti|Giosuè Carducci|Guglielmo Marconi|Carlo Del Prete|Agostino Marti|Lazzaro Papi|Camillo Benso Conte di Cavour|Pompeo Batoni|Giovanni Pacini|Castruccio Castracani|Repubblica|Regina Margherita)|Piazzale (Bettino Ricasoli|Luigi Boccherini)|Rotatoria .*)$", "bbox": [43.834, 10.488, 43.853, 10.52]},
+  "San Concordio streets: Viale San Concordio, Savonarola, Formica, Consani, Squaglia, Ingrellini": {"name": "^(Viale San Concordio|Via Girolamo Savonarola|Via della Formica|Via Vincenzo Consani|Via Enrico Squaglia|Via Mario Ingrellini)$"},
+  "South-east Lucca, the railway to the A11 (no motorway)": {"bbox": [43.826, 10.497, 43.8375, 10.54], "type": "link|primary|secondary|tertiary|unclassified|residential"},
+  "West Lucca, west of the Walls (no motorway)": {"bbox": [43.8, 10.42, 43.88, 10.497], "type": "primary|secondary|tertiary|unclassified|residential"},
+  "East Lucca and Capannori (no motorway)": {"bbox": [43.815, 10.515, 43.88, 10.62], "type": "link|primary|secondary|tertiary|unclassified|residential"},
+  "Capannori exit: ramps and toll (300 m, the motorway not counted)": {"near": [43.8242, 10.5972, 300], "type": "link|primary|secondary|tertiary|unclassified|residential"},
+  "A11 east of the Capannori exit, toward Florence": {"name": "^Autostrada Firenze-Mare$", "bbox": [43.81, 10.6, 43.83, 10.63]}
+}

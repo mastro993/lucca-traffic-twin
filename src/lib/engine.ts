@@ -11,7 +11,7 @@ import { initialState, patch, viewer, type LayerKey, type Tip } from './store'
 import { edgeAt, locate, queue, roadPoint, speedFactors, VSCALE, type Routes, type Spot } from './replay'
 import { keepTrips, trips, VNAME, type Trips } from './trips'
 
-export interface Init { day: Day; run: Run; t: number; z?: number; still: boolean }
+export interface Init { day: Day; run: Run; t: number; z?: number; ll?: [number, number]; still: boolean }   // ll: latitude, longitude
 type ViewState = { longitude: number; latitude: number; zoom: number; pitch: number; bearing: number; [k: string]: unknown }
 type VehView = { length: number; attributes?: Record<string, unknown> }
 interface Follow extends Routes {
@@ -40,7 +40,8 @@ export class Engine {
     this.t = init.t; this.B = hourBlend(init.t)
     const o = scene.meta.origin; this.mvp = new WebMercatorViewport({ longitude: o[0], latitude: o[1] })
     const narrow = window.innerWidth < 760, bounds = { maxPitch: 75, minZoom: 11, maxZoom: 19 }
-    this.vs = init.z !== undefined ? { longitude: 10.4955, latitude: 43.8396, zoom: init.z, pitch: 60, bearing: -25, ...bounds }
+    const [lat, lon] = init.ll ?? [43.8396, 10.4955]   // a close-up: the Viale Carducci / Viale Europa roundabout unless ?ll says where
+    this.vs = init.z !== undefined || init.ll ? { longitude: lon, latitude: lat, zoom: init.z ?? 16, pitch: 60, bearing: -25, ...bounds }
       : { longitude: narrow ? 10.507 : 10.493, latitude: narrow ? 43.838 : 43.846, zoom: narrow ? 12.4 : 13.25, pitch: 52, bearing: -18, ...bounds }
     this.zoom = this.vs.zoom
     const lighting = new LightingEffect({ amb: new AmbientLight({ color: [255, 255, 255], intensity: 1.0 }),

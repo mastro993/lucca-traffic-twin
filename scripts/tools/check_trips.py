@@ -19,7 +19,7 @@ def read(path):
     return dict(n=n, t0=t0, dep=dep, arr=arr, edge=edge, typ=typ)
 
 key = sys.argv[1] if len(sys.argv) > 1 else 'wd'
-NE = len(json.load(open(EDGE_IDS)))
+NE = json.load(open(EDGE_IDS))['roads']
 kpi = json.load(open(RESULTS / f'{DAYS[key]}_results.json'))['kpi']
 for h in range(24):
     T = read(WEBRAW / 'trips' / f'{key}_{h:02d}.bin')
