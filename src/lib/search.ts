@@ -6,8 +6,10 @@ import type { Day } from './data'
 export interface ViewerSearch { d?: Day; s?: string; h?: number; z?: number; ll?: string; still?: boolean }
 export function validateSearch(s: Record<string, unknown>): ViewerSearch {
   const num = (v: unknown) => (v === undefined || v === '' || !Number.isFinite(+(v as number)) ? undefined : +(v as number))
+  const ll = typeof s.ll === 'string' && /^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/.test(s.ll) ? s.ll : undefined
+  const [lat, lon] = ll?.split(',').map(Number) ?? []
   return { d: s.d === 'sat' ? 'sat' : undefined, s: typeof s.s === 'string' && s.s ? s.s : undefined, h: num(s.h), z: num(s.z),
-    ll: typeof s.ll === 'string' && /^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/.test(s.ll) ? s.ll : undefined,
+    ll: Math.abs(lat) <= 85 && Math.abs(lon) <= 180 ? ll : undefined,   // the map's (Web Mercator) range
     still: s.still !== undefined && s.still !== false ? true : undefined }
 }
 /** Clock seconds the page opens at. */

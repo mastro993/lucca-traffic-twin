@@ -27,7 +27,7 @@ describe('deep links', () => {
   it('parses the documented parameters', () => {
     expect(validateSearch({ d: 'sat', h: 8.5, z: 16, still: '' })).toEqual({ d: 'sat', h: 8.5, z: 16, still: true })
     expect(validateSearch({ ll: '43.8305,10.5197' }).ll).toBe('43.8305,10.5197')
-    expect(validateSearch({ ll: '43.8305' }).ll).toBeUndefined()
+    for (const ll of ['43.8305', '91,10', '43.8,181', `1${'0'.repeat(400)},10`]) expect(validateSearch({ ll }).ll).toBeUndefined()
   })
   it('stays stable when the router re-validates its own output', () => {
     const once = validateSearch({ h: 8 })
