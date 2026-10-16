@@ -1,0 +1,42 @@
+<!-- A new A11 exit at Mugnano, from the preliminary design of the University of Pisa's feasibility study for the Comune
+     di Lucca (Laboratorio LOGIT, A. Pratelli, November 2020; Piano Operativo, Quadro Conoscitivo QC.Sa.1): a trumpet
+     junction north of the A11, west of the Fabio Perini plant. mg_*: where the ramps leave and join the motorway, which is
+     cut there (mugnano.edg.xml), and the ends of the toll plaza; r0_*, r1_*, r2_*: where each arm meets a roundabout's ring,
+     15 degrees either side of the arm. Network coordinates (metres). -->
+<nodes>
+  <node id="mg_eb_decel" x="11210.00" y="5495.00" type="priority"/>
+  <node id="mg_eb_off" x="11360.00" y="5493.17" type="priority"/>
+  <node id="mg_eb_on" x="11800.00" y="5488.22" type="priority"/>
+  <node id="mg_eb_accel_end" x="12000.00" y="5486.15" type="priority"/>
+  <node id="mg_wb_decel" x="11860.00" y="5498.80" type="priority"/>
+  <node id="mg_wb_off" x="11660.00" y="5501.54" type="priority"/>
+  <node id="mg_wb_on" x="11390.00" y="5504.41" type="priority"/>
+  <node id="mg_wb_accel_end" x="11190.00" y="5506.23" type="priority"/>
+  <node id="mg_ci" x="11452.00" y="5566.00" type="priority"/>
+  <node id="mg_co" x="11283.00" y="5684.00" type="priority"/>
+  <node id="mg_stem_s" x="11497.00" y="5409.00" type="priority"/>
+  <node id="r1_s_in" x="11202.28" y="5934.31" type="priority"/>
+  <node id="r1_s_out" x="11194.46" y="5932.51" type="priority"/>
+  <node id="r1_e_in" x="11210.50" y="5947.77" type="priority"/>
+  <node id="r1_e_out" x="11208.31" y="5940.05" type="priority"/>
+  <node id="r1_n_in" x="11183.19" y="5958.04" type="priority"/>
+  <node id="r1_n_out" x="11189.79" y="5962.60" type="priority"/>
+  <node id="r1_w_in" x="11181.06" y="5954.78" type="priority"/>
+  <node id="r2_w_in" x="11388.04" y="5899.98" type="priority"/>
+  <node id="r2_w_out" x="11390.00" y="5905.33" type="priority"/>
+  <node id="r2_e_in" x="11409.10" y="5903.35" type="priority"/>
+  <node id="r2_e_out" x="11409.92" y="5897.71" type="priority"/>
+  <node id="r2_s_in" x="11402.04" y="5888.43" type="priority"/>
+  <node id="r2_s_out" x="11396.34" y="5888.33" type="priority"/>
+  <node id="r0_s_in" x="11130.87" y="6147.99" type="priority"/>
+  <node id="r0_s_out" x="11122.85" y="6148.07" type="priority"/>
+  <node id="r0_w_in" x="11111.52" y="6162.20" type="priority"/>
+  <node id="r0_w_out" x="11113.19" y="6170.05" type="priority"/>
+  <node id="r0_e_in" x="11141.02" y="6169.62" type="priority"/>
+  <node id="r0_e_out" x="11142.45" y="6161.72" type="priority"/>
+  <node id="r0_n_in" x="11122.24" y="6177.75" type="priority"/>
+  <node id="r0_n_out" x="11130.25" y="6178.15" type="priority"/>
+  <node id="mg_plaza_in_s" x="11287.75" y="5695.56" type="priority"/>
+  <node id="mg_plaza_in_n" x="11252.75" y="5792.75" type="priority"/>
+  <node id="mg_plaza_out_n" x="11242.75" y="5789.88" type="priority"/>
+</nodes>

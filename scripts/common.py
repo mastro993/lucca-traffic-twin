@@ -30,7 +30,7 @@ DAYS = {'wd': 'weekday', 'sat': 'saturday'}
 # Fixed-time plans are deterministic, so the viewer can show each light's state from the program alone.
 TLS = ['--tls.default-type', 'static', '--tls.cycle.time', '70', '--tls.yellow.time', '4', '--tls.allred.time', '2']
 # scenarios the viewer can switch to besides the baseline: their seed-1 runs from 12_scenario.py (labels in 10_build_summary.py)
-VIEWER_SCENARIOS = ['bandettini_signals', 'bandettini_roundabout']
+VIEWER_SCENARIOS = ['bandettini_signals', 'bandettini_roundabout', 'mugnano_exit']
 
 
 def sumo_home():

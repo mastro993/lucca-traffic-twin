@@ -27,11 +27,11 @@ individually.
 | **Traffic lights** | The 22 signals in the network (23 in the Before run), running the fixed-time plans SUMO simulated. Zoomed in, each approach has a pole with an arm over its lanes and a head per lane whose red, amber or green lamp is lit (heads are drawn at twice their real size); zoomed out, each head is a coloured dot. Hover a light for its state, the seconds until it changes and the cycle length. |
 | **Critical points** | The 12 junction clusters with the most daily delay. Column height = delay at the current time; click one to fly to it at its peak hour. |
 | **Points of interest** | Off by default; tick *Points of interest* in the **Layers** box on the right (the pin button pulls it out and pushes it back; closed at first on phones) to show the places that draw crowds, as dots coloured by kind: schools, hospitals and clinics, big stores and markets, sports grounds, factories and industrial sites (5000 m² or more), stations, town halls, courts, cinemas and theatres. Their names appear when zoomed in to street level; hover a dot for its name and kind. They come from OpenStreetMap, so their coverage is OSM's: the demand model does not use them. |
-| **24-hour strip** | Network-wide delay per hour (bars = selected day and run; dashed = the other day, or in Before and After the other of the two) with the clock's playhead. Drag to scrub through the day; **Play** runs the clock. |
+| **24-hour strip** | Network-wide delay per hour (bars = selected day and run; dashed = the other day, or in a scenario the run it is compared with: Before and After each other, Mugnano the After run) with the clock's playhead. Drag to scrub through the day; **Play** runs the clock. |
 | **Panel** | Vehicles on the road and their average speed right now (counted from the replay), delay and km of congested road (blended hourly figures), plus the method, the calibration table and the sources. |
-| **Before and after** | The switch under the day toggle shows the baseline or one of two scenario runs: **Before**, the Viale Europa / Via Teresa Bandettini junction as the signalised crossroads it was until 30 July 2026, and **After**, the roundabout that replaced it (see [Before and after](#before-and-after-the-viale-europa--via-teresa-bandettini-roundabout)). Roads, signals, vehicles, critical points and figures all switch; the clock and the camera stay. |
+| **Scenarios** | The switch under the day toggle shows the baseline or one of three scenario runs: **Before**, the Viale Europa / Via Teresa Bandettini junction as the signalised crossroads it was until 30 July 2026, **After**, the roundabout that replaced it (see [Before and after](#before-and-after-the-viale-europa--via-teresa-bandettini-roundabout)), and **Mugnano**, the After network with the Lucca Est exit moved to Mugnano, as a 2020 study proposes (see [the proposal](#proposal-move-the-lucca-est-exit-to-mugnano)). Roads, signals, vehicles, critical points and figures all switch; the clock and the camera stay. |
 
-Deep links: `?h=8` opens 08:00 (`?h=8.5` opens 08:30), `?d=sat` opens Saturday, `?s=bandettini_signals` (Before) or `?s=bandettini_roundabout` (After) opens a scenario run, `?z=16` zooms in. For example, [`?d=sat&h=11`](https://mastro993.github.io/lucca-traffic-twin/?d=sat&h=11) opens the Saturday 11:00 peak.
+Deep links: `?h=8` opens 08:00 (`?h=8.5` opens 08:30), `?d=sat` opens Saturday, `?s=bandettini_signals` (Before), `?s=bandettini_roundabout` (After) or `?s=mugnano_exit` (Mugnano) opens a scenario run, `?z=16` zooms in on the Viale Carducci / Viale Europa roundabout and `?ll=43.8302,10.5205` (latitude, longitude) on another place. For example, [`?d=sat&h=11`](https://mastro993.github.io/lucca-traffic-twin/?d=sat&h=11) opens the Saturday 11:00 peak.
 
 | Saturday 11:00 | Weekday 17:00, close-up (dark mode) |
 |---|---|
@@ -209,6 +209,10 @@ A scenario changes the road network and is compared with a reference run of the 
 | `areas.json` | areas to report (optional) | `{"Viale Europa": {"name": "^Viale Europa$", "bbox": [43.828, 10.485, 43.8405, 10.5]}}` |
 
 Vehicles choose their route when they depart and every 5 minutes, so traffic finds its own way through the changed network.
+A scenario can build on another by linking to its files: `mugnano_exit` links the as-built Bandettini roundabout's
+(`ln -s ../bandettini_roundabout/roundabout.edg.xml`), so it changes the network as it is today. An existing road can be
+moved onto new junctions (`<edge id="…" to="…" shape="…"/>`); netconvert then drops its connections at that end, so
+the scenario's `*.con.xml` must give them again.
 
 ```bash
 python3 scripts/12_scenario.py baseline weekday                   # the reference run, once per day type (~1 h)
@@ -322,6 +326,100 @@ scene holds the roads and signals of every run.
 |---|---|
 | ![Before](docs/assets/bandettini_before.jpg) | ![After](docs/assets/bandettini_after.jpg) |
 
+#### Proposal: move the Lucca Est exit to Mugnano
+
+Between Lucca Est and Capannori the A11 runs for 8.5 km without an exit. Lucca Est, 2 km from the Walls, lets its
+traffic out onto Viale Europa, which leads to the south-west corner of the Viali where the model's worst delays are
+(critical points 1, 3 and 5), and traffic from Florence bound for the east and south-east of the city leaves at
+Capannori and crosses the plain. The Comune's structural plan (Piano Strutturale, 2017) keeps a corridor free along the
+motorway at Mugnano, on the border with Capannori, for a new exit, and in 2020 the University of Pisa studied it for the
+Comune: [*Studio per la verifica di fattibilità di un nuovo casello autostradale (A11) in località
+Mugnano*](https://maps3.ldpgis.it/lucca/sites/lucca/files/po/quadro_conoscitivo/QC_S/QC_Sa_1.pdf) (Laboratorio LOGIT, A.
+Pratelli, November 2020), part of the Piano Operativo's specialist studies with its [compensation
+measures](https://pianooperativovigente.comune.lucca.it/QC_Quadro%20Conoscitivo/QC.S_studi_specialistici/QC.Sa.2_Approv_Def_signed.pdf).
+The study argues from motorway safety: the ramps of Lucca Est and of the Lucca Ovest / A12 junction are 190 m apart, and
+traffic weaving between them causes rear-end collisions. Its plan moves Lucca Est to Mugnano: the new exit opens and Lucca
+Est closes, its toll becoming a car park for motorway users, so the city keeps two exits, Lucca Ovest and Mugnano. The
+study measured the motorway, not the city's roads, which is what the model can add.
+
+The scenario `mugnano_exit` builds the study's plan on the network as it is today, with the as-built Bandettini
+roundabout (its folder links to that scenario's patch files), and is compared with `bandettini_roundabout`:
+
+| Element | In the model | Source |
+|---|---|---|
+| Trumpet junction north of the A11, west of the Fabio Perini plant: direct ramps from and to Florence, a loop south of the motorway and a flyover for traffic from Pisa, a hook onto the motorway for traffic to Pisa | ramps at 40 km/h, as at Lucca Est; a third lane for 150–230 m before each exit and after each entry | study, §3.1.2 and Figures 28–30 |
+| Toll plaza, five lanes each way | the road's 100 m stretch through it at 40 km/h; toll booths are not simulated, as at the other exits | study, §3.1.2 |
+| Roundabout 40 m across on Via di Mugnano at Via Dario Vitali, the exit road its fourth arm | two-lane ring, two entry lanes from the exit | study, §3.1.2 and Figure 31 |
+| Roundabout at Via di Mugnano / Via Giovanni Diodati, Via Diodati as the lorry route, traffic calming through the village | one-lane ring; the roads linking the exit upgraded to tertiary roads; Via di Mugnano through Mugnano at 30 km/h | study, Figure 31; compensation measures |
+| Lucca Est closed to general traffic, kept as a car park for motorway users with buses to the city | its toll plaza removed, so its ramps lead nowhere; the car park is not modelled | study, §3.2 |
+| The Via di Mugnano / Via Squaglia / Via Mattei junction, where the exit's traffic meets the roads to the city | rebuilt 40 m across with a two-lane ring, instead of the 18 m mini-roundabout OSM maps | added here: with the OSM one, the exit's traffic to the city queued back onto the ramps every morning |
+| Not included | the two roundabouts east of Via Diodati, which prepare for the Piano Operativo's future roads, and the Piano Operativo's link road along the railway to the station | |
+
+```bash
+python3 scripts/12_scenario.py bandettini_roundabout weekday                            # the network as it is today (committed)
+BASE=bandettini_roundabout python3 scripts/12_scenario.py mugnano_exit weekday          # the plan, against today
+SEED=2 BASE=bandettini_roundabout python3 scripts/12_scenario.py mugnano_exit weekday   # ... and SEED=2 and 3, also on Saturday
+python3 scripts/tools/seed_summary.py mugnano_exit weekday bandettini_roundabout
+```
+
+**Results** (change in daily time lost against the network as it is today, mean of three seeds and their range; the
+areas, in `scenarios/mugnano_exit/areas.json`, overlap, and West Lucca includes Lucca Est, Viale Europa and Teresa
+Mattei; the runs' `stats.xml`, comparisons and edge data are in `results/scenarios/mugnano_exit/`):
+
+| | Weekday | Saturday |
+|---|---:|---:|
+| Whole network (trip statistics) | −16.2% (−18.7 to −15.0) | −17.2% (−24.4 to −11.0) |
+| The new exit's roads, 400 m round the junction (veh-h a day) | 21 → 315 | 11 → 125 |
+| Lucca Est exit and its ramps (300 m) | −90.3% (−90.6 to −89.9) | −85.7% (−86.3 to −84.9) |
+| Viale Europa (SS12 radd.), Lucca Est to the Walls | −64.2% (−65.4 to −62.9) | −68.7% (−72.6 to −65.9) |
+| Teresa Mattei roundabout, Viale Carducci / Viale Europa (100 m) | −34.3% (−35.6 to −33.4) | −41.6% (−48.8 to −34.9) |
+| The Viali round the Walls | −19.6% (−22.0 to −17.5) | −20.0% (−26.4 to −12.5) |
+| San Concordio: Viale San Concordio, Via Savonarola, Formica, Consani, Squaglia, Ingrellini | −25.6% (−33.5 to −16.6) | −2.3% (−23.6 to +13.5) |
+| South-east Lucca, the railway to the A11 | +60.6% (+49.2 to +69.2) | +54.0% (+15.5 to +92.7) |
+| West Lucca, west of the Walls | −28.5% (−32.9 to −25.5) | −36.0% (−48.3 to −25.8) |
+| East Lucca and Capannori | +3.5% (+2.0 to +4.6) | +4.9% (+2.7 to +7.0) |
+| Capannori exit and its ramps (300 m) | −29.1% (−30.3 to −27.9) | −20.1% (−21.2 to −19.5) |
+| A11, Lucca Ovest junction to the Capannori exit | −14.0% (−17.3 to −10.7) | −9.2% (−12.9 to −5.6) |
+| A11 east of the Capannori exit, toward Florence | −71.8% (−73.2 to −69.2) | −8.1% (−10.8 to −4.8) |
+
+| Vehicles a weekday leaving or joining the A11 (first seed) | Today | With the plan |
+|---|---:|---:|
+| Lucca Ovest (on the A11 / A12 link road) | 8,500 | 10,900 |
+| Lucca Est | 25,700 | – |
+| Mugnano | – | 27,900 |
+| Capannori | 28,000 | 25,300 |
+
+- **The network** loses 16% less time on a weekday, 3,200 vehicle-hours a day or 35 s a trip, and 17% less on
+  Saturday, in every seed, while driving 1% fewer vehicle-km. With Lucca Est closed, Viale Europa no longer carries the
+  motorway's traffic: it loses 64–69% less time and carries 22–26% fewer vehicle-km, the Teresa Mattei roundabout loses
+  34–42% less time, the Viali about 20% and the west of the city as a whole 29–36%. Traffic between Florence and the east
+  and south of the city now stays on the motorway to Mugnano, so on a weekday the morning queue for the Capannori exit,
+  which in the model backs up toward Florence, falls from 650 to 180 vehicle-hours.
+- **The cost falls on the south-east.** Mugnano handles 27,900 vehicles a weekday, more than Lucca Est did, and the
+  south-east of the city between the railway and the motorway carries 64–85% more vehicle-km and loses 54–61% more time.
+  The exit's own roads lose 315 vehicle-hours a weekday, most of them in the morning peak, when 1,000 vehicles an hour
+  leave the motorway there: most head north for the city by Via di Mugnano and the Via Ingrellini underpass under the
+  railway, and they queue back from the rebuilt junction at Via Squaglia to the toll plaza. The Piano Operativo's planned
+  link road along the railway would give them a second way in. The San Concordio streets carry 16–26% more traffic, in
+  less time lost on a weekday; Lucca Ovest takes 2,400 more vehicles a weekday, and East Lucca and Capannori lose 3–5%
+  more time.
+
+Limits: tolls are not simulated (see [Limits](#limits)), so a short trip on the motorway costs nothing: about 6,700
+vehicles a weekday drive the 5 km between Mugnano and Capannori on the A11, where today's run has 5,700 between Lucca
+Est and Capannori, and the model's Lucca Est carries more traffic than the study counted there, so the relief of
+closing it may be overstated. The demand is the same in every run: no traffic is attracted by the new exit, for instance
+to the industrial areas around it, and no driver parks at the Lucca Est car park and takes the bus. Toll booths and
+pedestrians are not modelled, and the junction is drawn from the study's schematic plans, within about 50 m.
+
+**In the viewer**, the **Mugnano** run replays the first seed of `mugnano_exit`, and the 24-hour strip draws the After
+run dashed beside it; [`?s=mugnano_exit&h=8.5&ll=43.8302,10.5205`](https://mastro993.github.io/lucca-traffic-twin/?s=mugnano_exit&h=8.5&ll=43.8302,10.5205)
+opens the new junction at 08:30.
+
+| The network today (After), weekday 08:31 | With the plan, same time |
+|---|---|
+| ![Mugnano today](docs/assets/mugnano_before.jpg) | ![The Mugnano exit](docs/assets/mugnano_after.jpg) |
+| ![Lucca Est today](docs/assets/mugnano_lucca_est_before.jpg) | ![Lucca Est closed](docs/assets/mugnano_lucca_est_after.jpg) |
+
 ### Viewer
 The viewer (`src/`, `index.html`, `package.json` at the repository root) is a [Vite](https://vite.dev) + React + TypeScript app (pnpm), rendering with [deck.gl](https://deck.gl) 8.9.
 [TanStack Router](https://tanstack.com/router) parses the deep links and loads the data before the first frame,
@@ -371,6 +469,7 @@ dashed) and their KPIs and critical points under `scen`, by file prefix (`wd-<sc
 - **Not modelled:** buses, bicycles, pedestrians, parking search, roadworks, incidents and events (Lucca Comics & Games, Summer Festival).
 - **Fixed departure times.** Without departure-time choice, peaks are probably sharper than in reality, so the 08–10 congestion is on the strong side.
 - **Replayed motion.** Only the second each vehicle left each road is recorded, not its lane or its speed along the road, so the viewer reconstructs both (see [Viewer data format](#viewer-data-format)). Delay shows as standing in queues rather than as slow driving, and where SUMO let a vehicle pass another in a lane the replay may briefly draw them overlapping.
+- **No tolls.** Toll booths and fares are not simulated, so drivers choose motorway exits by travel time alone and short trips on the A11 between Lucca's exits cost nothing: in the run of today's network about 5,700 vehicles a weekday drive between Lucca Est and Capannori on it. At 18:00 the model sends 660 vehicles an hour onto the A11 westbound at Lucca Est, where the University of Pisa's study counted 10, and lets out 280 of the 735 counted arriving from Florence (counts of 2010; see [the Mugnano exit](#proposal-move-the-lucca-est-exit-to-mugnano)). Which exit traffic uses is the model's weakest output.
 - **Model artefacts.** Some delay at the A11 boundaries comes from vehicles waiting to enter the study area, and a few short multi-lane links deadlock until teleported. Both are excluded from the KPIs and the ranking.
 
 ## Roadmap: improvement scenarios
@@ -378,7 +477,8 @@ dashed) and their KPIs and critical points under `scen`, by file prefix (`wd-<sc
 - [ ] **Ring road, south-west:** Carducci / Europa roundabout redesign, signal coordination on the Viali, access management for the Carducci / Palatucci / Tagliate car parks.
 - [ ] **Park-and-ride at Lucca Est** with a shuttle to the Walls.
 - [ ] **The planned "Assi viari" / Viabilità Est** (Ponte a Moriano – A11 Frizzone / Lucca Est) and a new Serchio bridge.
-- [ ] **Ramp metering or toll-plaza layout** at Lucca Est and Capannori.
+- [x] **The Lucca Est exit moved to Mugnano**, the University of Pisa's 2020 plan (see [the proposal](#proposal-move-the-lucca-est-exit-to-mugnano)).
+- [ ] **Ramp metering or toll-plaza layout** at Lucca Est and Capannori, and **tolls** in route choice.
 - [ ] **Demand-side measures:** staggered school starts (8:00 / 8:30), modal shift for school trips, Saturday parking guidance.
 - [ ] **Difference maps** in the viewer: colour each road by its change between two runs (the run switch shows one run at a time).
 

@@ -1,0 +1,8 @@
+<!-- The study's plan moves Lucca Est to Mugnano: once the new exit opens, the Lucca Est toll closes to general traffic and
+     becomes a car park for motorway users only, with buses to the city. Its plaza is removed in both directions, so the
+     Lucca Est ramps lead nowhere and Lucca's traffic leaves and joins the A11 at Lucca Ovest, Mugnano or Capannori. The car
+     park itself is not modelled: the demand is the same in every run. -->
+<edges>
+  <delete id="369267493"/>
+  <delete id="699196683"/>
+</edges>

@@ -26,6 +26,8 @@ describe('trip replay', () => {
 describe('deep links', () => {
   it('parses the documented parameters', () => {
     expect(validateSearch({ d: 'sat', h: 8.5, z: 16, still: '' })).toEqual({ d: 'sat', h: 8.5, z: 16, still: true })
+    expect(validateSearch({ ll: '43.8305,10.5197' }).ll).toBe('43.8305,10.5197')
+    expect(validateSearch({ ll: '43.8305' }).ll).toBeUndefined()
   })
   it('stays stable when the router re-validates its own output', () => {
     const once = validateSearch({ h: 8 })

@@ -20,7 +20,8 @@ export function Viewer() {
 
   useEffect(() => {
     const s = open.current
-    const e = new Engine(sceneEl.current!, scene, summary, queryClient, { day: s.d ?? 'wd', run: s.run, t: startTime(s), z: s.z, still: !!s.still })
+    const e = new Engine(sceneEl.current!, scene, summary, queryClient, { day: s.d ?? 'wd', run: s.run, t: startTime(s), z: s.z,
+      ll: s.ll?.split(',').map(Number) as [number, number] | undefined, still: !!s.still })
     setEngine(e)
     return () => { e.destroy(); setEngine(null) }
   }, [scene, summary, queryClient])

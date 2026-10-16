@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2026-10-15T22:25:38.950408+01:00 by Eclipse SUMO sumo 1.28.0
+<sumoConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd">
+
+    <input>
+        <net-file value="/Users/federico.mastrini/.t3/worktrees/lucca-traffic-twin/t3-51ae406c/build/scenarios/mugnano_exit.net.xml.gz"/>
+        <route-files value="/Users/federico.mastrini/.t3/worktrees/lucca-traffic-twin/t3-51ae406c/demand/saturday.trips.xml.gz"/>
+        <additional-files value="edgedata_h.add.xml"/>
+    </input>
+
+    <output>
+        <tripinfo-output value="tripinfo.xml.gz"/>
+        <vehroute-output value="vehroutes.xml.gz"/>
+        <vehroute-output.exit-times value="true"/>
+        <vehroute-output.last-route value="true"/>
+        <statistic-output value="stats.xml"/>
+    </output>
+
+    <time>
+        <begin value="0"/>
+        <end value="90000"/>
+    </time>
+
+    <processing>
+        <ignore-junction-blocker value="30"/>
+        <ignore-route-errors value="true"/>
+        <collision.action value="warn"/>
+        <time-to-teleport value="180"/>
+        <max-depart-delay value="1800"/>
+        <lanechange.duration value="0"/>
+        <time-to-impatience value="60"/>
+    </processing>
+
+    <routing>
+        <routing-algorithm value="astar"/>
+        <weights.priority-factor value="0.5"/>
+        <device.rerouting.probability value="1"/>
+        <device.rerouting.period value="300"/>
+        <device.rerouting.adaptation-steps value="30"/>
+        <device.rerouting.adaptation-interval value="10"/>
+    </routing>
+
+    <report>
+        <no-warnings value="true"/>
+        <duration-log.statistics value="true"/>
+        <no-step-log value="true"/>
+    </report>
+
+    <random_number>
+        <seed value="2"/>
+    </random_number>
+
+</sumoConfiguration>
+-->
+
+<statistics xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/statistic_file.xsd">
+    <performance clockBegin="1792095939.05" clockEnd="1792098365.54" clockDuration="2426.49" traciDuration="873.94" realTimeFactor="37.09" vehicleUpdatesPerSecond="82182.62" personUpdatesPerSecond="0.00" begin="0.00" end="90000.00" duration="90000.00"/>
+    <vehicles loaded="299048" inserted="299048" running="8" waiting="0"/>
+    <teleports total="2268" jam="84" yield="61" wrongLane="2123"/>
+    <safety collisions="5" emergencyStops="0" emergencyBraking="9"/>
+    <persons loaded="0" running="0" jammed="0"/>
+    <personTeleports total="0" abortWait="0" wrongDest="0"/>
+    <vehicleTripStatistics count="299040" routeLength="9324.66" speed="14.82" duration="666.79" waitingTime="36.74" timeLoss="113.74" departDelay="0.02" departDelayWaiting="-1.00" totalTravelTime="199395688.00" totalDepartDelay="5150.00"/>
+    <pedestrianStatistics number="0" routeLength="0.00" duration="0.00" timeLoss="0.00"/>
+    <rideStatistics number="0"/>
+    <transportStatistics number="0"/>
+</statistics>
