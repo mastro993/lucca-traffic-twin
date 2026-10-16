@@ -2,13 +2,13 @@
      a third lane for 150-230 m before each exit and after each entry, as netconvert's ramp guessing gave the other exits.
      Ramps at 40 km/h, as at Lucca Est: direct ramps from and to Florence along the north side; from Pisa a loop south of the
      motorway and a flyover; to Pisa a hook onto the north side, east of the Via di Sorbano del Vescovo overpass. The exit
-     road (two lanes each way; the toll plaza is its 40 km/h stretch, toll booths are not simulated, as at the other exits)
-     leads to R1, the study's 40 m roundabout on Via di Mugnano at Via Dario Vitali (two-lane ring); R2 is the study's
-     roundabout at Via Giovanni Diodati (one-lane ring). R0 replaces the 18 m mini-roundabout at Via di Mugnano / Via Enrico
-     Squaglia / Via Enrico Mattei, where the exit's traffic meets the roads to the city, with a 40 m two-lane ring: an
-     addition to the study, whose design stops at R2. The roads linking them and Via Giovanni Diodati, the study's route for
-     lorries, are upgraded to tertiary roads; Via di Mugnano through the village east of R2 is calmed to 30 km/h (the
-     compensation measures in QC.Sa.2). -->
+     road (two lanes into R1 and, as the study draws it, one out of it, widening to two through the toll plaza, its 40 km/h
+     stretch; toll booths are not simulated, as at the other exits) leads to R1, the study's 40 m roundabout on Via di
+     Mugnano at Via Dario Vitali (two-lane ring); R2 is the study's roundabout at Via Giovanni Diodati (one-lane ring). R0
+     replaces the 18 m mini-roundabout at Via di Mugnano / Via Enrico Squaglia / Via Enrico Mattei, where the exit's traffic
+     meets the roads to the city, with a 40 m two-lane ring: an addition to the study, whose design stops at R2. The roads
+     linking them and Via Giovanni Diodati, the study's route for lorries, are upgraded to tertiary roads; Via di Mugnano
+     through the village east of R2 is calmed to 30 km/h (the compensation measures in QC.Sa.2). -->
 <edges>
   <edge id="177525642#1" to="mg_eb_decel" shape="9227.15,5651.82 9257.47,5645.84 9443.09,5609.67 9472.83,5604.04 9581.86,5582.47 9688.90,5561.59 9796.10,5540.90 9856.09,5530.24 9907.27,5523.29 9949.81,5518.15 9981.84,5515.03 10017.76,5512.24 10052.24,5509.93 10088.54,5508.47 10116.90,5507.56 10127.05,5507.23 10134.21,5507.00 10199.76,5506.53 10293.29,5505.69 10433.76,5503.90 10753.71,5500.57 11210.00,5495.00"/>
   <edge id="a11_eb_decel" from="mg_eb_decel" to="mg_eb_off" name="Autostrada Firenze-Mare" type="highway.motorway" priority="14" numLanes="3" speed="36.11" spreadType="center" width="5.50" shape="11210.00,5495.00 11360.00,5493.17"/>

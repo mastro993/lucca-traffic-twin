@@ -349,7 +349,7 @@ roundabout (its folder links to that scenario's patch files), and is compared wi
 |---|---|---|
 | Trumpet junction north of the A11, west of the Fabio Perini plant: direct ramps from and to Florence, a loop south of the motorway and a flyover for traffic from Pisa, a hook onto the motorway for traffic to Pisa | ramps at 40 km/h, as at Lucca Est; a third lane for 150–230 m before each exit and after each entry | study, §3.1.2 and Figures 28–30 |
 | Toll plaza, five lanes each way | the road's 100 m stretch through it at 40 km/h; toll booths are not simulated, as at the other exits | study, §3.1.2 |
-| Roundabout 40 m across on Via di Mugnano at Via Dario Vitali, the exit road its fourth arm | two-lane ring, two entry lanes from the exit | study, §3.1.2 and Figure 31 |
+| Roundabout 40 m across on Via di Mugnano at Via Dario Vitali, the exit road its fourth arm | two-lane ring; two lanes in from the exit, one lane back to it | study, §3.1.2 and Figure 31 |
 | Roundabout at Via di Mugnano / Via Giovanni Diodati, Via Diodati as the lorry route, traffic calming through the village | one-lane ring; the roads linking the exit upgraded to tertiary roads; Via di Mugnano through Mugnano at 30 km/h | study, Figure 31; compensation measures |
 | Lucca Est closed to general traffic, kept as a car park for motorway users with buses to the city | its toll plaza removed, so its ramps lead nowhere; the car park is not modelled | study, §3.2 |
 | The Via di Mugnano / Via Squaglia / Via Mattei junction, where the exit's traffic meets the roads to the city | rebuilt 40 m across with a two-lane ring, instead of the 18 m mini-roundabout OSM maps | added here: with the OSM one, the exit's traffic to the city queued back onto the ramps every morning |
